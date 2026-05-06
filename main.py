@@ -169,13 +169,12 @@ class GlucoseEntry(BaseModel):
 def insert_new_profile(user: UserRegister, db=Depends(get_db)):
     logger.info(f"Inserimento profilo per: {user.full_name}")
 
-    # FIX: Usiamo il confronto tra stringhe semplici
     if user.hypo_threshold is not None:
         hyp_thres = user.hypo_threshold
     else:
-        # Usiamo "mg/dL" come stringa, esattamente come arriva da Flutter
         hyp_thres = 70 if user.measurement_unit == "mg/dL" else 3.9
 
+    # MODIFICA: Aggiungiamo RETURNING id alla fine della query
     query = text("""
     INSERT INTO profiles (
         full_name, measurement_unit, diabetes_type, diabetes_note, 
@@ -184,11 +183,13 @@ def insert_new_profile(user: UserRegister, db=Depends(get_db)):
     VALUES (
         :f_name, :m_unit, :diabete, :diabete_n, 
         :t_min, :t_max, :hyp_t, :em, :phone, :password
-    );
+    )
+    RETURNING id;
     """)    
 
     try:
-        db.execute(query, {
+        # MODIFICA: Eseguiamo la query e recuperiamo il risultato
+        result = db.execute(query, {
             "f_name": user.full_name,
             "m_unit": user.measurement_unit,
             "diabete": user.diabetes_type,
@@ -200,10 +201,20 @@ def insert_new_profile(user: UserRegister, db=Depends(get_db)):
             "phone": user.phone_number,
             "password": user.password
         })
+        
+        # Recuperiamo l'ID appena creato
+        new_id = result.fetchone()[0]
+        
         db.commit()
-        return {"status": "success", "message": f"Profilo di {user.full_name} creato"}
+        
+        # MODIFICA: Ora restituiamo anche l'user_id
+        return {
+            "status": "success", 
+            "user_id": new_id, 
+            "message": f"Profilo di {user.full_name} creato"
+        }
     except SQLAlchemyError as e:
-        db.rollback() # Aggiungi sempre il rollback in caso di errore
+        db.rollback() 
         logger.error(f"Errore DB: {e}")
         raise HTTPException(
             status_code=500, detail="Errore durante il salvataggio")
