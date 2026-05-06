@@ -219,7 +219,26 @@ def insert_new_profile(user: UserRegister, db=Depends(get_db)):
         raise HTTPException(
             status_code=500, detail="Errore durante il salvataggio")
 
-
+@app.post("/login")
+def login_user(credentials: dict, db = Depends(get_db)):
+    email = credentials.get("email")
+    password = credentials.get("password")
+    
+    # Cerchiamo l'utente nel database
+    # Importante: usa lo stesso nome tabella (profiles) e colonne che hai usato nella registrazione
+    query = text("SELECT id, full_name FROM profiles WHERE email = :em AND password = :pw")
+    result = db.execute(query, {"em": email, "pw": password}).fetchone()
+    
+    if result:
+        return {
+            "status": "success", 
+            "user_id": result[0], 
+            "full_name": result[1]
+        }
+    else:
+        # Se le credenziali sono sbagliate, restituiamo un errore 401
+        raise HTTPException(status_code=401, detail="Email o password errati")
+    
 @app.post("/insert/glucose_flutter/{user_id}")
 def insert_glucose_value_flutter(user_id: int, g: GlucoseEntry, db=Depends(get_db)):
     logger.info(
