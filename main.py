@@ -409,27 +409,23 @@ def get_glucose_state(user_id: int, db=Depends(get_db)):
         return {"error": "Errore database"}
 
 
-@app.get("/analyses/last_meal/{user_id}")
+@app.get("/analyses/last_meal")
 def get_last_meal(user_id: int, db=Depends(get_db)):
-    logger.info(f"Richiesta ultimo pasto utente con id {user_id}")
-
     query = text("""
-    SELECT p.full_name, m.description
-    FROM profiles p
-    JOIN meals m ON p.id = m.user_id
-    WHERE p.id = :u_id
-    ORDER BY m.consumed_at DESC
+        SELECT m.description, m.carbs_grams, m.consumed_at
+        FROM meals m
+        WHERE m.user_id = :u_id
+        ORDER BY m.consumed_at DESC
         LIMIT 1
-""")
+    """)
     try:
-        result = db.execute(query, {"u_id": user_id})
-        rows = [dict(row._mapping) for row in result]
-
-        logger.info(f"✅ Query eseguita, trovati {len(rows)} risultati")
-        return rows
+        result = db.execute(query, {"u_id": user_id}).mappings().first()
+        if result:
+            # Trasformiamo l'oggetto Row in un dizionario pulito
+            return dict(result)
+        return None # Oppure un errore 404
     except SQLAlchemyError as e:
-        logger.error(f"❌ Errore nella query: {e}")
-        return {"error": "Errore database"}
+        return {"error": str(e)}
 
 
 # @app.get("/analyses/last_meal_total_carbs/{user_id}")
