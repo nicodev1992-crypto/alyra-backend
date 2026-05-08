@@ -17,9 +17,10 @@ from fastapi.responses import JSONResponse
 # Per permettere a Flutter di comunicare con python
 from fastapi.middleware.cors import CORSMiddleware
 
-#sql alchemy creazione tabella su supbase di postgresql
+# sql alchemy creazione tabella su supbase di postgresql
 from datetime import datetime  # <--- Assicurati che ci sia questo
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey  # <--- Aggiungi ForeignKey qui
+# <--- Aggiungi ForeignKey qui
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import declarative_base
 
 from flask import Flask, request, jsonify
@@ -27,6 +28,8 @@ from flask import Flask, request, jsonify
 Base = declarative_base()
 
 # Definizione della tabella per SQLAlchemy
+
+
 class ProfileModel(Base):
     __tablename__ = "profiles"
     id = Column(Integer, primary_key=True, index=True)
@@ -40,7 +43,8 @@ class ProfileModel(Base):
     email = Column(String)
     phone_number = Column(String)
     password = Column(String)
-    
+
+
 class GlucoseModel(Base):
     __tablename__ = "glucose"
     id = Column(Integer, primary_key=True, index=True)
@@ -53,6 +57,8 @@ class GlucoseModel(Base):
     added_time = Column(DateTime, default=datetime.utcnow)
 
 # --- TABELLA MEALS ---
+
+
 class MealModel(Base):
     __tablename__ = "meals"
     id = Column(Integer, primary_key=True, index=True)
@@ -81,9 +87,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 app = FastAPI()
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
-    print(f"❌ ERRORE VALIDAZIONE: {exc.errors()}") # Questo apparirà nel terminale uvicorn
+    # Questo apparirà nel terminale uvicorn
+    print(f"❌ ERRORE VALIDAZIONE: {exc.errors()}")
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 app.add_middleware(
@@ -145,15 +153,15 @@ class SourceType(str, Enum):
 
 class UserRegister(BaseModel):
     full_name: str
-    email: str # Usa str semplice per ora, come suggerito
+    email: str  # Usa str semplice per ora, come suggerito
     password: str
     measurement_unit: str = "mg/dL"
     diabetes_type: str = "Type 1"
     target_min: int = 70
     target_max: int = 180
     # Cambia queste tre righe così:
-    hypo_threshold: Optional[int] = 70 
-    diabetes_note: str = ""            
+    hypo_threshold: Optional[int] = 70
+    diabetes_note: str = ""
     phone_number: str = ""
 
 
@@ -166,6 +174,7 @@ class GlucoseEntry(BaseModel):
 # --------------------------------------POST
 
 # USATA PER REGISTRARE NOME EMIAL E PSW
+
 
 @app.post("/insert/register_user")
 def insert_new_profile(user: UserRegister, db=Depends(get_db)):
@@ -187,7 +196,7 @@ def insert_new_profile(user: UserRegister, db=Depends(get_db)):
         :t_min, :t_max, :hyp_t, :em, :phone, :password
     )
     RETURNING id;
-    """)    
+    """)
 
     try:
         # MODIFICA: Eseguiamo la query e recuperiamo il risultato
@@ -203,44 +212,47 @@ def insert_new_profile(user: UserRegister, db=Depends(get_db)):
             "phone": user.phone_number,
             "password": user.password
         })
-        
+
         # Recuperiamo l'ID appena creato
         new_id = result.fetchone()[0]
-        
+
         db.commit()
-        
+
         # MODIFICA: Ora restituiamo anche l'user_id
         return {
-            "status": "success", 
-            "user_id": new_id, 
+            "status": "success",
+            "user_id": new_id,
             "message": f"Profilo di {user.full_name} creato"
         }
     except SQLAlchemyError as e:
-        db.rollback() 
+        db.rollback()
         logger.error(f"Errore DB: {e}")
         raise HTTPException(
             status_code=500, detail="Errore durante il salvataggio")
 
+
 @app.post("/login")
-def login_user(credentials: dict, db = Depends(get_db)):
+def login_user(credentials: dict, db=Depends(get_db)):
     email = credentials.get("email")
     password = credentials.get("password")
-    
+
     # Cerchiamo l'utente nel database
     # Importante: usa lo stesso nome tabella (profiles) e colonne che hai usato nella registrazione
-    query = text("SELECT id, full_name FROM profiles WHERE email = :em AND password = :pw")
+    query = text(
+        "SELECT id, full_name FROM profiles WHERE email = :em AND password = :pw")
     result = db.execute(query, {"em": email, "pw": password}).fetchone()
-    
+
     if result:
         return {
-            "status": "success", 
-            "user_id": result[0], 
+            "status": "success",
+            "user_id": result[0],
             "full_name": result[1]
         }
     else:
         # Se le credenziali sono sbagliate, restituiamo un errore 401
         raise HTTPException(status_code=401, detail="Email o password errati")
-    
+
+
 @app.post("/insert/glucose_flutter/{user_id}")
 def insert_glucose_value_flutter(user_id: int, g: GlucoseEntry, db=Depends(get_db)):
     logger.info(
@@ -290,9 +302,17 @@ def insert_glucose_value(user_id: int, sugar_value: int, recorded_time: datetime
         return {"error": "Errore database"}
 
 
+class MealData(BaseModel):
+    user_id: int
+    description: str
+    carbs_grams: int
+    consumed_at: datetime
+
+
 @app.post("/insert/last_meal")
-def insert_last_meal(user_id: int, description: str,  carbs_grams: int, consumed_at: datetime, db=Depends(get_db)):
-    logger.info(f"Tentativo inserimento ultimo pasto utente con id {user_id}")
+def insert_last_meal(meal: MealData, db=Depends(get_db)):
+    logger.info(
+        f"Tentativo inserimento ultimo pasto utente con id {meal.user_id}")
 
     query = text("""
                  INSERT INTO meals (user_id, description, carbs_grams, consumed_at)
@@ -300,10 +320,10 @@ def insert_last_meal(user_id: int, description: str,  carbs_grams: int, consumed
                  """)
     try:
         db.execute(query, {
-            "u_id": user_id,
-            "desc": description,
-            "carb": carbs_grams,
-            "consumed": consumed_at
+            "u_id": meal.user_id,
+            "desc": meal.description,
+            "carb": meal.carbs_grams,
+            "consumed": meal.consumed_at
         })  # fai la query scritta in sql
 
         db.commit()  # <--- Ricorda le parentesi!
@@ -419,15 +439,17 @@ def get_last_meal(user_id: int, db=Depends(get_db)):
 @app.get('/search_food')
 def search_food():
     query = request.args.get('q', '')
-    if len(query) < 2: return jsonify([]) # Non cercare per una sola lettera
-    
+    if len(query) < 2:
+        return jsonify([])  # Non cercare per una sola lettera
+
     # Cerchi i cibi che iniziano con o contengono la stringa
     results = db.execute(
-        "SELECT id, nome, carbo_per_100g FROM cibi WHERE nome ILIKE %s LIMIT 5", 
+        "SELECT id, nome, carbo_per_100g FROM cibi WHERE nome ILIKE %s LIMIT 5",
         (f"%{query}%",)
     ).fetchall()
-    
+
     return jsonify([{"id": r[0], "name": r[1], "carbs": r[2]} for r in results])
+
 
 @app.get("/analyses/meal_history/{user_id}")
 def get_last_meals_story(user_id: int, db=Depends(get_db)):
