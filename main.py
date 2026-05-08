@@ -416,7 +416,7 @@ def get_last_meal(user_id: int, db=Depends(get_db)):
 # def get_meal_total_carbs(user_id: int,  )
 
 
-@app.route('/search_food', methods=['GET'], db = Depends(get_db))
+@app.get('/search_food')
 def search_food():
     query = request.args.get('q', '')
     if len(query) < 2: return jsonify([]) # Non cercare per una sola lettera
