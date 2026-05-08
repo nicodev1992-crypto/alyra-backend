@@ -22,6 +22,8 @@ from datetime import datetime  # <--- Assicurati che ci sia questo
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey  # <--- Aggiungi ForeignKey qui
 from sqlalchemy.orm import declarative_base
 
+from flask import Flask, request, jsonify
+
 Base = declarative_base()
 
 # Definizione della tabella per SQLAlchemy
@@ -288,7 +290,7 @@ def insert_glucose_value(user_id: int, sugar_value: int, recorded_time: datetime
         return {"error": "Errore database"}
 
 
-@app.post("/insert/last_meal/{user_id}")
+@app.post("/insert/last_meal")
 def insert_last_meal(user_id: int, description: str,  carbs_grams: int, consumed_at: datetime, db=Depends(get_db)):
     logger.info(f"Tentativo inserimento ultimo pasto utente con id {user_id}")
 
@@ -409,6 +411,23 @@ def get_last_meal(user_id: int, db=Depends(get_db)):
         logger.error(f"❌ Errore nella query: {e}")
         return {"error": "Errore database"}
 
+
+# @app.get("/analyses/last_meal_total_carbs/{user_id}")
+# def get_meal_total_carbs(user_id: int,  )
+
+
+@app.route('/search_food', methods=['GET'], db = Depends(get_db))
+def search_food():
+    query = request.args.get('q', '')
+    if len(query) < 2: return jsonify([]) # Non cercare per una sola lettera
+    
+    # Cerchi i cibi che iniziano con o contengono la stringa
+    results = db.execute(
+        "SELECT id, nome, carbo_per_100g FROM cibi WHERE nome ILIKE %s LIMIT 5", 
+        (f"%{query}%",)
+    ).fetchall()
+    
+    return jsonify([{"id": r[0], "name": r[1], "carbs": r[2]} for r in results])
 
 @app.get("/analyses/meal_history/{user_id}")
 def get_last_meals_story(user_id: int, db=Depends(get_db)):
