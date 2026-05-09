@@ -164,13 +164,6 @@ class UserRegister(BaseModel):
     diabetes_note: str = ""
     phone_number: str = ""
 
-
-class GlucoseEntry(BaseModel):
-    user_id: int
-    sugar_value: float
-    recorded_at: datetime
-    source_type: SourceType = SourceType.MANUAL
-    phase: Phase
 # --------------------------------------POST
 
 # USATA PER REGISTRARE NOME EMIAL E PSW
@@ -253,29 +246,36 @@ def login_user(credentials: dict, db=Depends(get_db)):
         raise HTTPException(status_code=401, detail="Email o password errati")
 
 
-@app.post("/insert/glucose_flutter/{user_id}")
-def insert_glucose_value_flutter(user_id: int, g: GlucoseEntry, db=Depends(get_db)):
-    logger.info(
-        f"Tentativo inserimento ultimo pasto utente con id {g.user_id}")
+# dashboard_main.py (o il tuo file FastAPI)
 
+class GlucoseCreate(BaseModel):
+    user_id: int
+    glucose_value: float
+    phase: str
+    source_type: str  # Aggiunto: es. "Manuale", "Sensore", "App"
+    measured_at: datetime
+
+@app.post("/add_glucose")
+def add_glucose(data: GlucoseCreate, db=Depends(get_db)):
     query = text("""
-                 INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
-                 VALUES (:u_id,:sugar,:record,:source,:phase);
-                 """)
+        INSERT INTO glucose_measurements 
+        (user_id, glucose_value, phase, source_type, measured_at)
+        VALUES (:u_id, :g_val, :ph, :s_type, :m_at)
+    """)
+    
     try:
         db.execute(query, {
-            "u_id": user_id,
-            "sugar": g.sugar_value,
-            "record": g.recorded_at,
-            "source": g.source_type,
-            "phase": g.phase
+            "u_id": data.user_id,
+            "g_val": data.glucose_value,
+            "ph": data.phase,
+            "s_type": data.source_type, # <--- Parametro aggiunto
+            "m_at": data.measured_at
         })
-
-        db.commit()  # <--- Ricorda le parentesi!
-        return {"status": f"Analisi glucosio inserito correttamente per utente con ID{g.user_id}"}
-    except SQLAlchemyError as e:
-        logger.error(f"❌ Errore nella query: {e}")
-        return {"error": "Errore database"}
+        db.commit()
+        return {"status": "Success"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/insert/glucose/{user_id}")
