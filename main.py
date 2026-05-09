@@ -324,7 +324,7 @@ def insert_last_meal(meal: MealData, db=Depends(get_db)):
 
 
 # -----------------------------------------------------GET
-@app.get("/users/info/{user_id}")
+@app.get("/get_user")
 def get_dati_by_ID(user_id: int, db=Depends(get_db)):
     logger.info(f"Richiesta nome profilo utente con id {user_id}")
 
