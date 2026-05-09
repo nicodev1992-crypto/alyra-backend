@@ -280,7 +280,7 @@ def get_last_meal(user_id: int, db=Depends(get_db)):
         SELECT g.sugar_value, g.phase, g.recorded_at
         FROM glucose g
         WHERE g.user_id = :u_id
-        ORDER BY g.recoded_at DESC
+        ORDER BY g.recorded_at DESC
         LIMIT 1
     """)
     try:
