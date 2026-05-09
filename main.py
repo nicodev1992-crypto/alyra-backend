@@ -249,23 +249,23 @@ def login_user(credentials: dict, db=Depends(get_db)):
 class GlucoseCreate(BaseModel):
     user_id: int
     sugar_value: float
+    recorded_at: datetime
+    source_type: str
     phase: str
-    source_type: str 
-    measured_at: datetime
 
 @app.post("/add_glucose")
 def add_glucose(data: GlucoseCreate, db=Depends(get_db)):
     query = text("""
-        INSERT INTO glucose_measurements (user_id, sugar_value, phase, source_type, measured_at)
-        VALUES (:u_id, :s_val, :ph, :s_type, :m_at)
+        INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
+        VALUES (:u_id, :s_val, :r_at, :s_type, :ph)
     """)
     try:
         db.execute(query, {
             "u_id": data.user_id,
             "s_val": data.sugar_value,
-            "ph": data.phase,
+            "r_at": data.recorded_at,
             "s_type": data.source_type,
-            "m_at": data.measured_at
+            "ph": data.phase
         })
         db.commit()
         return {"status": "Success"}
@@ -419,7 +419,7 @@ def get_last_meal(user_id: int, db=Depends(get_db)):
         if result:
             # Trasformiamo l'oggetto Row in un dizionario pulito
             return dict(result)
-        return None # Oppure un errore 404
+        return None  # Oppure un errore 404
     except SQLAlchemyError as e:
         return {"error": str(e)}
 
