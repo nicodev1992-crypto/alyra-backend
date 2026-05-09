@@ -246,29 +246,25 @@ def login_user(credentials: dict, db=Depends(get_db)):
         raise HTTPException(status_code=401, detail="Email o password errati")
 
 
-# dashboard_main.py (o il tuo file FastAPI)
-
 class GlucoseCreate(BaseModel):
     user_id: int
-    glucose_value: float
+    sugar_value: float
     phase: str
-    source_type: str  # Aggiunto: es. "Manuale", "Sensore", "App"
+    source_type: str 
     measured_at: datetime
 
 @app.post("/add_glucose")
 def add_glucose(data: GlucoseCreate, db=Depends(get_db)):
     query = text("""
-        INSERT INTO glucose_measurements 
-        (user_id, sugar_value, phase, source_type, measured_at)
-        VALUES (:u_id, :g_val, :ph, :s_type, :m_at)
+        INSERT INTO glucose_measurements (user_id, sugar_value, phase, source_type, measured_at)
+        VALUES (:u_id, :s_val, :ph, :s_type, :m_at)
     """)
-    
     try:
         db.execute(query, {
             "u_id": data.user_id,
-            "g_val": data.glucose_value,
+            "s_val": data.sugar_value,
             "ph": data.phase,
-            "s_type": data.source_type, # <--- Parametro aggiunto
+            "s_type": data.source_type,
             "m_at": data.measured_at
         })
         db.commit()
