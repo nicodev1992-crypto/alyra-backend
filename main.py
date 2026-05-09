@@ -274,29 +274,23 @@ def add_glucose(data: GlucoseCreate, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/insert/glucose/{user_id}")
-def insert_glucose_value(user_id: int, sugar_value: int, recorded_time: datetime, source_t: SourceType, phase: Phase, db=Depends(get_db)):
-    logger.info(f"Tentativo inserimento ultimo pasto utente con id {user_id}")
-
+@app.get("/analyses/last_glucose")
+def get_last_meal(user_id: int, db=Depends(get_db)):
     query = text("""
-                 INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
-                 VALUES (:u_id,:sugar,:record,:source,:phase);
-                 """)
+        SELECT g.sugar_value, g.phase, g.recorded_at
+        FROM glucose g
+        WHERE g.user_id = :u_id
+        ORDER BY g.recoded_at DESC
+        LIMIT 1
+    """)
     try:
-        db.execute(query, {
-            "u_id": user_id,
-            "sugar": sugar_value,
-            "record": recorded_time,
-            "source": source_t,
-            "phase": phase
-        })
-
-        db.commit()  # <--- Ricorda le parentesi!
-        return {"status": f"Analisi glucosio inserito correttamente per utente con ID{user_id}"}
+        result = db.execute(query, {"u_id": user_id}).mappings().first()
+        if result:
+            # Trasformiamo l'oggetto Row in un dizionario pulito
+            return dict(result)
+        return None  # Oppure un errore 404
     except SQLAlchemyError as e:
-        logger.error(f"❌ Errore nella query: {e}")
-        return {"error": "Errore database"}
-
+        return {"error": str(e)}
 
 class MealData(BaseModel):
     user_id: int
