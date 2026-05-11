@@ -301,7 +301,7 @@ def get_last_glucose(user_id: int, db=Depends(get_db)):
 class MealData(BaseModel):
     user_id: int
     description: str
-    carbs_grams: int
+    carbs_grams: float
     consumed_at: datetime
 
 
