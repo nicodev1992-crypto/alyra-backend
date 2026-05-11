@@ -275,7 +275,7 @@ def add_glucose(data: GlucoseCreate, db=Depends(get_db)):
 
 
 @app.get("/analyses/last_glucose")
-def get_last_meal(user_id: int, db=Depends(get_db)):
+def get_last_glucose(user_id: int, db=Depends(get_db)):
     query = text("""
         SELECT g.sugar_value, g.phase, g.recorded_at
         FROM glucose g
@@ -286,11 +286,17 @@ def get_last_meal(user_id: int, db=Depends(get_db)):
     try:
         result = db.execute(query, {"u_id": user_id}).mappings().first()
         if result:
-            # Trasformiamo l'oggetto Row in un dizionario pulito
-            return dict(result)
-        return None  # Oppure un errore 404
-    except SQLAlchemyError as e:
-        return {"error": str(e)}
+            # Creiamo un dizionario pulito
+            # .isoformat() trasforma la data in una stringa che Flutter può leggere
+            return {
+                "sugar_value": result["sugar_value"],
+                "phase": result["phase"],
+                "recorded_at": result["recorded_at"].isoformat() if result["recorded_at"] else None
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Errore: {e}")
+        return None
 
 class MealData(BaseModel):
     user_id: int
