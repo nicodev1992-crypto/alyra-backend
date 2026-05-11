@@ -342,7 +342,27 @@ def get_dati_by_ID(user_id: int, db=Depends(get_db)):
         logger.error(f"❌ Errore nella query: {e}")
         return {"error": "Errore database"}
 
+@app.get("/check_user_exists")
+def check_user_exists(user_id: int, db=Depends(get_db)):
+    logger.info(f"Verifica esistenza utente id {user_id}")
 
+    # Chiediamo solo l'ID, non tutto il profilo (*)
+    query = text("SELECT id FROM profiles WHERE id = :u_id")
+    
+    try:
+        result = db.execute(query, {"u_id": user_id}).fetchone()
+        
+        if result:
+            logger.info(f"✅ Utente {user_id} trovato.")
+            return {"exists": True}
+        else:
+            logger.warning(f"⚠️ Utente {user_id} non trovato nel database.")
+            return {"exists": False}
+            
+    except SQLAlchemyError as e:
+        logger.error(f"❌ Errore database: {e}")
+        return {"exists": False, "error": str(e)}
+    
 @app.get("/analyses/user_health_state/{user_id}")
 def get_glucose_state(user_id: int, db=Depends(get_db)):
     logger.info(f"Richiesta stato utente con id {user_id}")
