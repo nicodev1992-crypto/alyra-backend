@@ -1,4 +1,4 @@
-from sqlalchemy import text  # Assicurati che sia importato
+from sqlalchemy import Boolean, text  # Assicurati che sia importato
 import logging
 from enum import Enum
 from datetime import datetime
@@ -49,7 +49,7 @@ class ProfileModel(Base):
     email = Column(String)
     phone_number = Column(String)
     password = Column(String)
-    privacy_accepted = Column(bool, default=False)  # <--- Aggiungi questa
+    privacy_accepted = Column(Boolean, default=False)  # <--- Aggiungi questa
     privacy_timestamp = Column(String)
 
 
