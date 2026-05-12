@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from pydantic import BaseModel, EmailStr
+from pydexcom import Dexcom
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -39,10 +40,17 @@ class ProfileModel(Base):
     diabetes_note = Column(String)
     target_min = Column(Integer)
     target_max = Column(Integer)
+    target_ideal = Column(Integer, default=110)
+    ic_ratio = Column(Float, default=10.0)
+    isf = Column(Float, default=50.0)
+    insulin_duration = Column(Integer, default=4)
+    ketone_threshold = Column(Integer, default=250)
     hypo_threshold = Column(Integer)
     email = Column(String)
     phone_number = Column(String)
     password = Column(String)
+    privacy_accepted = Column(bool, default=False)  # <--- Aggiungi questa
+    privacy_timestamp = Column(String)
 
 
 class GlucoseModel(Base):
@@ -125,6 +133,56 @@ def get_db():
 # source_type Manual, CGM (sensor), Imported
 
 
+# DEXCOM
+
+# Funzione per recuperare l'ultimo valore dal cloud Dexcom
+def get_dexcom_value(username, password):
+    try:
+        # In Europa è obbligatorio ous=True
+        dexcom = Dexcom(username, password, ous=True)
+        reading = dexcom.get_current_glucose_reading()
+        if reading:
+            return {
+                "mg_dl": reading.value,
+                "trend": reading.trend_description,
+                "time": reading.datetime
+            }
+    except Exception as e:
+        logger.error(f"❌ Errore connessione Dexcom OUS: {e}")
+    return None
+
+
+@app.post("/sync_dexcom/{user_id}")
+def sync_dexcom(user_id: int, db=Depends(get_db)):
+    # Nota: In un futuro dovrai salvare le credenziali Dexcom nel ProfileModel
+    # Per ora puoi testarlo con variabili d'ambiente o parametri
+    dex_data = get_dexcom_value("username_amico", "password_amico")
+
+    if dex_data:
+        # Controlliamo se il valore esiste già per evitare duplicati
+        query_check = text(
+            "SELECT id FROM glucose WHERE recorded_at = :r_at AND user_id = :u_id")
+        exists = db.execute(
+            query_check, {"r_at": dex_data["time"], "u_id": user_id}).fetchone()
+
+        if not exists:
+            query_insert = text("""
+                INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
+                VALUES (:u_id, :s_val, :r_at, 'CGM', 'Auto')
+            """)
+            db.execute(query_insert, {
+                "u_id": user_id,
+                "s_val": dex_data["mg_dl"],
+                "r_at": dex_data["time"]
+            })
+            db.commit()
+            return {"status": "updated", "value": dex_data["mg_dl"]}
+
+        return {"status": "already_synced", "value": dex_data["mg_dl"]}
+
+    raise HTTPException(status_code=404, detail="Dati Dexcom non disponibili")
+
+
 class DiabetType(str, Enum):
     T_1 = "Type 1"
     T_2 = "Type 2"
@@ -153,46 +211,52 @@ class SourceType(str, Enum):
 
 class UserRegister(BaseModel):
     full_name: str
-    email: str  # Usa str semplice per ora, come suggerito
+    email: str
     password: str
     measurement_unit: str = "mg/dL"
     diabetes_type: str = "Type 1"
     target_min: int = 70
     target_max: int = 180
-    # Cambia queste tre righe così:
+    target_ideal: int = 110
+    ic_ratio: float = 10.0
+    isf: float = 50.0
+    insulin_duration: int = 4
+    ketone_threshold: int = 250
     hypo_threshold: Optional[int] = 70
     diabetes_note: str = ""
     phone_number: str = ""
+    privacy_accepted: bool = False
+    privacy_timestamp: Optional[str] = None
 
 # --------------------------------------POST
-
-# USATA PER REGISTRARE NOME EMIAL E PSW
-
-
 @app.post("/insert/register_user")
 def insert_new_profile(user: UserRegister, db=Depends(get_db)):
-    logger.info(f"Inserimento profilo per: {user.full_name}")
+    logger.info(f"Inserimento profilo completo per: {user.full_name}")
 
+    # Logica hypo_threshold esistente...
     if user.hypo_threshold is not None:
         hyp_thres = user.hypo_threshold
     else:
         hyp_thres = 70 if user.measurement_unit == "mg/dL" else 3.9
 
-    # MODIFICA: Aggiungiamo RETURNING id alla fine della query
     query = text("""
     INSERT INTO profiles (
         full_name, measurement_unit, diabetes_type, diabetes_note, 
-        target_min, target_max, hypo_threshold, email, phone_number, password
+        target_min, target_max, target_ideal, ic_ratio, isf, 
+        insulin_duration, ketone_threshold, hypo_threshold, 
+        email, phone_number, password,
+        privacy_accepted, privacy_timestamp  -- <--- AGGIUNTE QUI
     )
     VALUES (
         :f_name, :m_unit, :diabete, :diabete_n, 
-        :t_min, :t_max, :hyp_t, :em, :phone, :password
+        :t_min, :t_max, :t_ideal, :ic, :isf, 
+        :ins_dur, :ket_t, :hyp_t, :em, :phone, :password,
+        :p_acc, :p_ts  -- <--- AGGIUNTI QUI
     )
     RETURNING id;
     """)
 
     try:
-        # MODIFICA: Eseguiamo la query e recuperiamo il risultato
         result = db.execute(query, {
             "f_name": user.full_name,
             "m_unit": user.measurement_unit,
@@ -200,28 +264,33 @@ def insert_new_profile(user: UserRegister, db=Depends(get_db)):
             "diabete_n": user.diabetes_note,
             "t_min": user.target_min,
             "t_max": user.target_max,
+            "t_ideal": user.target_ideal,
+            "ic": user.ic_ratio,
+            "isf": user.isf,
+            "ins_dur": user.insulin_duration,
+            "ket_t": user.ketone_threshold,
             "hyp_t": hyp_thres,
             "em": user.email,
             "phone": user.phone_number,
-            "password": user.password
+            "password": user.password,
+            # --- VALORI PRIVACY ---
+            "p_acc": user.privacy_accepted,
+            "p_ts": user.privacy_timestamp
         })
 
-        # Recuperiamo l'ID appena creato
         new_id = result.fetchone()[0]
-
         db.commit()
 
-        # MODIFICA: Ora restituiamo anche l'user_id
         return {
             "status": "success",
             "user_id": new_id,
-            "message": f"Profilo di {user.full_name} creato"
+            "message": f"Profilo medico di {user.full_name} creato correttamente"
         }
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Errore DB: {e}")
         raise HTTPException(
-            status_code=500, detail="Errore durante il salvataggio")
+            status_code=500, detail="Errore nel salvataggio del profilo medico")
 
 
 @app.post("/login")
@@ -252,6 +321,7 @@ class GlucoseCreate(BaseModel):
     recorded_at: datetime
     source_type: str
     phase: str
+
 
 @app.post("/add_glucose")
 def add_glucose(data: GlucoseCreate, db=Depends(get_db)):
@@ -297,6 +367,7 @@ def get_last_glucose(user_id: int, db=Depends(get_db)):
     except Exception as e:
         logger.error(f"Errore: {e}")
         return None
+
 
 class MealData(BaseModel):
     user_id: int
@@ -348,27 +419,29 @@ def get_dati_by_ID(user_id: int, db=Depends(get_db)):
         logger.error(f"❌ Errore nella query: {e}")
         return {"error": "Errore database"}
 
+
 @app.get("/check_user_exists")
 def check_user_exists(user_id: int, db=Depends(get_db)):
     logger.info(f"Verifica esistenza utente id {user_id}")
 
     # Chiediamo solo l'ID, non tutto il profilo (*)
     query = text("SELECT id FROM profiles WHERE id = :u_id")
-    
+
     try:
         result = db.execute(query, {"u_id": user_id}).fetchone()
-        
+
         if result:
             logger.info(f"✅ Utente {user_id} trovato.")
             return {"exists": True}
         else:
             logger.warning(f"⚠️ Utente {user_id} non trovato nel database.")
             return {"exists": False}
-            
+
     except SQLAlchemyError as e:
         logger.error(f"❌ Errore database: {e}")
         return {"exists": False, "error": str(e)}
-    
+
+
 @app.get("/analyses/user_health_state/{user_id}")
 def get_glucose_state(user_id: int, db=Depends(get_db)):
     logger.info(f"Richiesta stato utente con id {user_id}")
