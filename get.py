@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text  # Importa direttamente la libreria
-from logger import get_logger
+from logger import logger
 from typing import Optional
 from database import get_db
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/get")
 # USER
 @router.get("/user")   #USATA IN USERSERVICE
 def get_dati_by_ID(user_id: int, db=Depends(get_db)):
-    get_logger.info(f"Richiesta nome profilo utente con id {user_id}")
+    logger.info(f"Richiesta nome profilo utente con id {user_id}")
 
     query = text("""
                  SELECT * FROM profiles p
@@ -21,16 +21,16 @@ def get_dati_by_ID(user_id: int, db=Depends(get_db)):
         result = db.execute(query, {"u_id": user_id})
         rows = [dict(row._mapping) for row in result]
 
-        get_logger.info(f"✅ Query eseguita, trovati {len(rows)} risultati")
+        logger.info(f"✅ Query eseguita, trovati {len(rows)} risultati")
         return rows
     except SQLAlchemyError as e:
-        get_logger.error(f"❌ Errore nella query: {e}")
+        logger.error(f"❌ Errore nella query: {e}")
         return {"error": "Errore database"}
 
 
 @router.get("/user_exists")    #USATA IN USERSERVICE
 def check_user_exists(user_id: int, db=Depends(get_db)):
-    get_logger.info(f"Verifica esistenza utente id {user_id}")
+    logger.info(f"Verifica esistenza utente id {user_id}")
 
     # Chiediamo solo l'ID, non tutto il profilo (*)
     query = text("SELECT id FROM profiles WHERE id = :u_id")
@@ -39,14 +39,14 @@ def check_user_exists(user_id: int, db=Depends(get_db)):
         result = db.execute(query, {"u_id": user_id}).fetchone()
 
         if result:
-            get_logger.info(f"✅ Utente {user_id} trovato.")
+            logger.info(f"✅ Utente {user_id} trovato.")
             return {"exists": True}
         else:
-            get_logger.warning(f"⚠️ Utente {user_id} non trovato nel database.")
+            logger.warning(f"⚠️ Utente {user_id} non trovato nel database.")
             return {"exists": False}
 
     except SQLAlchemyError as e:
-        get_logger.error(f"❌ Errore database: {e}")
+        logger.error(f"❌ Errore database: {e}")
         return {"exists": False, "error": str(e)}
 
 
@@ -54,7 +54,7 @@ def check_user_exists(user_id: int, db=Depends(get_db)):
 def get_id_utente_by_name_and_email(full_name: str, email: Optional[str] = None, phone_number: Optional[str] = None,
                                     db=Depends(get_db)
                                     ):
-    get_logger.info(
+    logger.info(
         f"Ricerca per nome: {full_name}, email fornita: {email is not None}, numero fornito {phone_number is not None}")
 
     # Query che gestisce l'email opzionale
@@ -81,13 +81,13 @@ def get_id_utente_by_name_and_email(full_name: str, email: Optional[str] = None,
         rows = [row for row in result.mappings()]
 
         if not rows:
-            get_logger.warning(f"⚠️ Nessun utente trovato per {full_name}")
+            logger.warning(f"⚠️ Nessun utente trovato per {full_name}")
             # Returning a 404 is cleaner for a "search" endpoint
             raise HTTPException(status_code=404, detail="Utente non trovato")
 
         return rows
     except SQLAlchemyError as e:
-        get_logger.error(f"❌ Errore: {e}")
+        logger.error(f"❌ Errore: {e}")
         return {"error": "Errore database"}
 
 # GET GLUCOSE
@@ -113,7 +113,7 @@ def get_last_glucose(user_id: int, db=Depends(get_db)):
             }
         return None
     except Exception as e:
-        get_logger.error(f"Errore: {e}")
+        logger.error(f"Errore: {e}")
         return None
 
 # MEAL
