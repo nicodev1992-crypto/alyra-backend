@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text  # Importa direttamente la libreria
-from logger import logger
+from logger import get_logger
 from typing import Optional
 from database import get_db
 
