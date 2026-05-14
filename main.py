@@ -1,4 +1,3 @@
-from logger import logger
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
