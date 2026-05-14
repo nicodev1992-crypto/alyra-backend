@@ -17,3 +17,7 @@ def get_logger(name: str):
         logger.addHandler(console_handler)
         
     return logger
+
+# AGGIUNGI QUESTA RIGA QUI SOTTO:
+# Questo crea l'oggetto 'logger' che tutti gli altri file stanno cercando di importare
+logger = get_logger("alyra_backend")
