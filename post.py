@@ -1,0 +1,207 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text  # Importa direttamente la libreria
+from database import get_db
+from logger import logger
+import schemas
+# tutte le richieste che iniziano per post arrivano qua
+router = APIRouter(prefix="/post")
+
+
+# -------------------------------------- USER REGISTER AND LOGIN
+@router.post("/insert/register_user")
+def insert_new_profile(user: schemas.UserRegister, db=Depends(get_db)):
+    logger.info(f"Inserimento profilo completo per: {user.full_name}")
+
+    # Logica hypo_threshold esistente...
+    if user.hypo_threshold is not None:
+        hyp_thres = user.hypo_threshold
+    else:
+        hyp_thres = 70 if user.measurement_unit == "mg/dL" else 3.9
+
+    query = text("""
+    INSERT INTO profiles (
+        full_name, measurement_unit, diabetes_type, diabetes_note, 
+        target_min, target_max, target_ideal, ic_ratio, isf, 
+        insulin_duration, ketone_threshold, hypo_threshold, 
+        email, phone_number, password,
+        privacy_accepted, privacy_timestamp  
+    )
+    VALUES (
+        :f_name, :m_unit, :diabete, :diabete_n, 
+        :t_min, :t_max, :t_ideal, :ic, :isf, 
+        :ins_dur, :ket_t, :hyp_t, :em, :phone, :password,
+        :p_acc, :p_ts  
+    )
+    RETURNING id;
+    """)
+
+    try:
+        result = db.execute(query, {
+            "f_name": user.full_name,
+            "m_unit": user.measurement_unit,
+            "diabete": user.diabetes_type,
+            "diabete_n": user.diabetes_note,
+            "t_min": user.target_min,
+            "t_max": user.target_max,
+            "t_ideal": user.target_ideal,
+            "ic": user.ic_ratio,
+            "isf": user.isf,
+            "ins_dur": user.insulin_duration,
+            "ket_t": user.ketone_threshold,
+            "hyp_t": hyp_thres,
+            "em": user.email,
+            "phone": user.phone_number,
+            "password": user.password,
+            # --- VALORI PRIVACY ---
+            "p_acc": user.privacy_accepted,
+            "p_ts": user.privacy_timestamp
+        })
+
+        new_id = result.fetchone()[0]
+        db.commit()
+
+        return {
+            "status": "success",
+            "user_id": new_id,
+            "message": f"Profilo medico di {user.full_name} creato correttamente"
+        }
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Errore DB: {e}")
+        raise HTTPException(
+            status_code=500, detail="Errore nel salvataggio del profilo medico")
+
+
+@router.post("/login")
+def login_user(credentials: dict, db=Depends(get_db)):
+    email = credentials.get("email")
+    password = credentials.get("password")
+
+    # Cerchiamo l'utente nel database
+    # Importante: usa lo stesso nome tabella (profiles) e colonne che hai usato nella registrazione
+    query = text(
+        "SELECT id, full_name FROM profiles WHERE email = :em AND password = :pw")
+    result = db.execute(query, {"em": email, "pw": password}).fetchone()
+
+    if result:
+        return {
+            "status": "success",
+            "user_id": result[0],
+            "full_name": result[1]
+        }
+    else:
+        # Se le credenziali sono sbagliate, restituiamo un errore 401
+        raise HTTPException(status_code=401, detail="Email o password errati")
+
+
+# GLUCOSE
+
+@router.post("/glucose")
+def add_glucose(data: schemas.GlucoseCreate, db=Depends(get_db)):
+    query = text("""
+        INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
+        VALUES (:u_id, :s_val, :r_at, :s_type, :ph)
+    """)
+    try:
+        db.execute(query, {
+            "u_id": data.user_id,
+            "s_val": data.sugar_value,
+            "r_at": data.recorded_at,
+            "s_type": data.source_type,
+            "ph": data.phase
+        })
+        db.commit()
+        return {"status": "Success"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# MEAL
+
+
+@router.post("/insert/last_meal")
+def insert_last_meal(meal: schemas.MealData, db=Depends(get_db)):
+    logger.info(
+        f"Tentativo inserimento ultimo pasto utente con id {meal.user_id}")
+
+    query = text("""
+                 INSERT INTO meals (user_id, description, carbs_grams, consumed_at)
+                 VALUES (:u_id,:desc,:carb,:consumed);
+                 """)
+    try:
+        db.execute(query, {
+            "u_id": meal.user_id,
+            "desc": meal.description,
+            "carb": meal.carbs_grams,
+            "consumed": meal.consumed_at
+        })  # fai la query scritta in sql
+
+        db.commit()  # <--- Ricorda le parentesi!
+        return {"status": "Pasto inserito correttamente"}
+    except SQLAlchemyError as e:
+        logger.error(f"❌ Errore nella query: {e}")
+        return {"error": "Errore database"}
+
+    # INDEFINITI
+
+
+@router.post("/insert/unified_log")
+def insert_unified_log(data: schemas.UnifiedRequest, db=Depends(get_db)):
+    try:
+        # 1. Gestione Glicemia [cite: 3]
+        if data.sugar_value:
+            db.execute(text("""
+                INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
+                VALUES (:u_id, :s_val, :r_at, 'Manual', :ph)
+            """), {"u_id": data.user_id, "s_val": data.sugar_value, "r_at": data.recorded_at, "ph": data.phase})
+
+        # 2. Gestione Pasto [cite: 1]
+        if data.carbs_grams:
+            db.execute(text("""
+                INSERT INTO meals (user_id, description, carbs_grams, consumed_at)
+                VALUES (:u_id, :desc, :carb, :at)
+            """), {"u_id": data.user_id, "desc": data.description or "Pasto", "carb": data.carbs_grams, "at": data.recorded_at})
+
+        # 3. Gestione Insulina (Tabella da creare nel tuo DB)
+        if data.insulin_units:
+            # Qui dovresti inserire i dati in una tabella 'insulin_logs'
+            pass
+
+        db.commit()
+        return {"status": "success"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# POST DEXCOM
+# @router.post("/sync_dexcom/{user_id}")
+# def sync_dexcom(user_id: int, db=Depends(get_db)):
+#     # Nota: In un futuro dovrai salvare le credenziali Dexcom nel ProfileModel
+#     # Per ora puoi testarlo con variabili d'ambiente o parametri
+#     dex_data = get_dexcom_value("username_amico", "password_amico")
+
+#     if dex_data:
+#         # Controlliamo se il valore esiste già per evitare duplicati
+#         query_check = text(
+#             "SELECT id FROM glucose WHERE recorded_at = :r_at AND user_id = :u_id")
+#         exists = db.execute(
+#             query_check, {"r_at": dex_data["time"], "u_id": user_id}).fetchone()
+
+#         if not exists:
+#             query_insert = text("""
+#                 INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
+#                 VALUES (:u_id, :s_val, :r_at, 'CGM', 'Auto')
+#             """)
+#             db.execute(query_insert, {
+#                 "u_id": user_id,
+#                 "s_val": dex_data["mg_dl"],
+#                 "r_at": dex_data["time"]
+#             })
+#             db.commit()
+#             return {"status": "updated", "value": dex_data["mg_dl"]}
+
+#         return {"status": "already_synced", "value": dex_data["mg_dl"]}
+
+#     raise HTTPException(status_code=404, detail="Dati Dexcom non disponibili")
