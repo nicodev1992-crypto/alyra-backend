@@ -43,14 +43,6 @@ async def validation_exception_handler(request, exc):
     print(f"❌ ERRORE VALIDAZIONE: {exc.errors()}")
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @app.get("/")
 def root():
     return {"message": "Alyra Backend Attivo e Modulare"}

@@ -12,6 +12,14 @@ Base = declarative_base()
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # 3. LE TUE CLASSI (Usano la Base appena creata sopra)
 class ProfileModel(Base):
     __tablename__ = "profiles"

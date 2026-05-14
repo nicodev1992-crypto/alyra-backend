@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text  # Importa direttamente la libreria
-from database import get_db
 from logger import logger
 from typing import Optional
+from database import get_db
 
 # tutte le richieste che iniziano per get arrivano qua
 router = APIRouter(prefix="/get")
