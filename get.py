@@ -8,6 +8,11 @@ from database import get_db
 # tutte le richieste che iniziano per get arrivano qua
 router = APIRouter(prefix="/get")
 
+
+@router.get("/wakeup")
+def wakeup():
+    return {"status": "server is awake"}
+
 # USER
 @router.get("/user")   #USATA IN USERSERVICE
 def get_dati_by_ID(user_id: int, db=Depends(get_db)):
