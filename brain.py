@@ -112,28 +112,42 @@ def check_active_insulin_dynamic(insulin_value, insulin_time, duration_hours):
     return round(insulin_value * remaining_perc, 1)
 
 
+from datetime import datetime, timezone
+
 def calculate_iob(insulin_value, insulin_time, duration_hours):
-    """Calcola l'Insulina Attiva (IOB) residua evitando crash di fuso orario."""
-    if not insulin_value or insulin_value <= 0 or not insulin_time:
-        return 0.0
-
-    if isinstance(insulin_time, str):
-        # Converte la stringa ISO e assicura che sia aware (UTC)
-        insulin_time = datetime.fromisoformat(insulin_time.replace('Z', '+00:00'))
+    """Calcola l'IOB residua gestendo errori di input e fusi orari."""
     
-    # Se insulin_time non ha fuso orario, glielo assegniamo (UTC)
-    if insulin_time.tzinfo is None:
-        insulin_time = insulin_time.replace(tzinfo=timezone.utc)
-
-    # Confronto tra due oggetti 'aware'
-    diff = datetime.now(timezone.utc) - insulin_time
-    elapsed_hours = diff.total_seconds() / 3600
-
-    if elapsed_hours >= duration_hours or elapsed_hours < 0:
+    # 1. GESTIONE MANCANZA DATI: Se non c'è l'ora o il valore, IOB è 0
+    if not insulin_value or insulin_value <= 0 or insulin_time is None:
         return 0.0
 
-    remaining_perc = 1 - (elapsed_hours / duration_hours)
-    return round(insulin_value * remaining_perc, 1)
+    try:
+        # 2. CONVERSIONE: Se è una stringa (ISO da Flutter), la trasformiamo in datetime
+        if isinstance(insulin_time, str):
+            # Gestisce il formato 'Z' di Flutter/Dart trasformandolo in offset +00:00
+            insulin_time = datetime.fromisoformat(insulin_time.replace('Z', '+00:00'))
+
+        # 3. UNIFORMITÀ FUSO ORARIO: Forza UTC se l'oggetto è "naive"
+        if insulin_time.tzinfo is None:
+            insulin_time = insulin_time.replace(tzinfo=timezone.utc)
+
+        # 4. CALCOLO DIFFERENZA (Entrambi ora sono aware e UTC)
+        now = datetime.now(timezone.utc)
+        diff = now - insulin_time
+        elapsed_hours = diff.total_seconds() / 3600
+
+        # 5. LOGICA DI DECADIMENTO
+        if elapsed_hours >= duration_hours or elapsed_hours < 0:
+            return 0.0
+
+        # Calcolo lineare della rimanente
+        remaining_perc = 1 - (elapsed_hours / duration_hours)
+        return round(insulin_value * remaining_perc, 1)
+        
+    except Exception as e:
+        # Se qualcosa va storto nella conversione, non crashare l'app
+        print(f"Errore nel calcolo IOB: {e}")
+        return 0.0
 
 
 def get_smart_advice(sugar, phase, profile, iob):
