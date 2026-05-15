@@ -58,7 +58,7 @@ def add_glucose_and_get_advice(data: schemas.GlucoseCreate, db=Depends(get_db)):
     return {
         "status": "Success",
         "advice": advice,
-        "iob": current_iob  # Restituiamo anche l'IOB per la UI se serve
+        "iob": current_iob  # Restituiamo anche l'IOB per la unità di insulina se serve
     }
 
 # Funzione di supporto (sempre in brain.py)
@@ -133,8 +133,9 @@ def calculate_iob(insulin_value, insulin_time, duration_hours):
     remaining_perc = 1 - (elapsed_hours / duration_hours)
     return round(insulin_value * remaining_perc, 1)
 
+
 def get_smart_advice(sugar, phase, profile, iob):
-    d_type = profile['diabetes_type'] # Recuperato da USERDATA.csv 
+    d_type = profile['diabetes_type']  # Recuperato da USERDATA.csv
 
     # 1. EMERGENZA (Uguale per tutti, ma il messaggio cambia con IOB)
     if sugar < profile['hypo_threshold']:
@@ -143,40 +144,52 @@ def get_smart_advice(sugar, phase, profile, iob):
     # 2. DIVISIONE PER TIPO DI DIABETE
     if d_type in ["Tipo 1", "LADA"]:
         return getAdviceInsulinDependent(sugar, phase, profile, iob)
-    
+
     elif d_type == "Gestational":
         return getAdviceGestational(sugar, phase, profile)
-    
-    else: # Tipo 2 o "Other"
+
+    else:  # Tipo 2 o "Other"
         return getAdviceType2(sugar, phase, profile)
-    
-#SOGLIA IPOGLICEMICA BASSA ATTENZIONE (UGUALE PER TUTTI)    
+
+# SOGLIA IPOGLICEMICA BASSA ATTENZIONE (UGUALE PER TUTTI)
+
+
 def getAdviceForDangerousHypo(sugar, iob, profile):
-    hypo_threshold = profile['hypo_threshold'] # Preso da USERDATA 
-    
-    # CASO EMERGENZA ASSOLUTA
-    if sugar < 55: # Soglia di pericolo severo
-        return (f"🚨 EMERGENZA: Glicemia criticamente bassa ({sugar}). "
-                f"Assumi immediatamente zuccheri liquidi (succo, acqua e zucchero). "
-                f"Se hai {iob} UI attive, il rischio è altissimo. Chiama qualcuno e non restare solo.")
+    hypo_threshold = profile.get('hypo_threshold', 70)
 
-    # CASO IPOGLICEMIA CON INSULINA ATTIVA
-    if iob > 0:
-        return (f"⚠️ PERICOLO: Hai {sugar} mg/dL e {iob} UI ancora attive. "
-                f"L'insulina continuerà ad abbassare il valore. Assumi 15g di zuccheri rapidi "
-                f"E aggiungi uno spuntino con carboidrati complessi (es. pane o biscotti) per frenare la discesa.")
+    # 1. EMERGENZA SEVERA (<55)
+    if sugar < 55:
+        msg = (f"🚨 EMERGENZA: Glicemia criticamente bassa ({sugar} mg/dL). "
+               f"Assumi IMMEDIATAMENTE zuccheri liquidi (succo o acqua e zucchero).")
 
-    # CASO REGOLA DEI 15 (Standard)
+        if iob > 0:
+            msg += f" ATTENZIONE: Hai ancora {iob} UI di insulina attiva che peggioreranno la discesa."
+        else:
+            msg += " Nonostante l'insulina attiva sia a 0, il valore è pericoloso."
+
+        msg += " Non restare solo. Se hai vertigini o confusione, chiama il 118."
+        return msg
+
+    # 2. IPOGLICEMIA CON INSULINA ATTIVA (Effetto trascinamento)
+    if sugar < hypo_threshold and iob > 0:
+        return (f"⚠️ PERICOLO: Hai {sugar} mg/dL con {iob} UI attive. "
+                "L'insulina continuerà ad abbassare il valore. Assumi 15g di zuccheri rapidi "
+                "E uno spuntino solido (pane/biscotti) per stabilizzare il valore nel tempo.")
+
+    # 3. IPOGLICEMIA STANDARD
     return (f"Glicemia bassa ({sugar}). Applica la regola dei 15: "
-            f"15g di zucchero semplice, attendi 15 minuti e ricontrolla. Ripeti se non risali sopra {hypo_threshold}.")
+            f"15g di zucchero semplice, attendi 15 minuti e ricontrolla. "
+            f"Ripeti finché non superi {hypo_threshold} mg/dL.")
 
-#CONSIGLI PER LADA E DIABETE 1   
+# CONSIGLI PER LADA E DIABETE 1
+
+
 def getAdviceInsulinDependent(sugar, phase, profile, iob):
     """Genera il consiglio basato su Glicemia, Fase e Insulina Attiva."""
     target_ideal = profile['target_ideal']
     isf = profile['isf']
     target_max = profile['target_max']
-    
+
     if phase == "notte":
         return getAdviceNightPhaseForInsulinDipendent(sugar, target_max, iob)
 
@@ -187,7 +200,9 @@ def getAdviceInsulinDependent(sugar, phase, profile, iob):
     # 4. CALCOLO CORREZIONE (Fasi Generiche / Check)
     return getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf)
 
-#CONSIGLI PER GESTAZIONALE
+# CONSIGLI PER GESTAZIONALE
+
+
 def getAdviceGestational(sugar, phase, profile):
     if sugar > profile['target_max']:
         return "Valore sopra il target gestazionale. Prova a bere acqua e fai una camminata leggera di 15 min. Segna cosa hai mangiato nell'ultimo pasto."
@@ -204,13 +219,13 @@ def getAdviceType2(sugar, phase, profile):
     # 1. GESTIONE IPERGLICEMIA (Valore Alto)
     if sugar > target_max:
         advice = f"Valore sopra il target ({sugar}). "
-        
+
         if phase == "notte":
             return advice + "Bevi un bicchiere d'acqua e cerca di riposare. Se il valore persiste alto al risveglio, parlane con il tuo medico per valutare la terapia serale."
-        
+
         if phase == "digiuno":
             return advice + "Il valore al risveglio è alto. Assicurati di aver assunto correttamente la tua terapia abituale e prediligi una colazione a basso contenuto di zuccheri."
-        
+
         # Fase Check / Generica
         return advice + "Considera una camminata leggera di 15-20 minuti per aiutare i muscoli a consumare lo zucchero in eccesso e idratati bene."
 
@@ -226,7 +241,8 @@ def getAdviceType2(sugar, phase, profile):
 
     return "Valore registrato correttamente."
 
-#fasi InsulinDipendent
+# fasi InsulinDipendent
+
 
 def getAdviceDuringFastingForInsulinDipendent(sugar, target_max, hypo_threshold, target_ideal, isf):
     # CASO 1: Ipoglicemia al risvegliogetAdviceForFastingfORiNSULINdIPENDENT
@@ -236,34 +252,34 @@ def getAdviceDuringFastingForInsulinDipendent(sugar, target_max, hypo_threshold,
     # CASO 2: Valore Alto (Iperglicemia mattutina)
     if sugar > target_max:
         # Calcoliamo la correzione necessaria per la colazione
-        needed_correction = round((sugar - target_ideal) / isf, 1) [cite: 1]
+        needed_correction = round((sugar - target_ideal) / isf, 1)[cite: 1]
         return (f"Buongiorno. Valore alto al risveglio ({sugar}). "
-                f"Valuta di aggiungere {needed_correction} UI al bolo della colazione "
-                f"e attendi 10-15 minuti prima di mangiare per contrastare la resistenza insulinica mattutina.") [cite: 1]
+                f"Valuta di aggiungere {needed_correction} unità di insulina al bolo della colazione "
+                f"e attendi 10-15 minuti prima di mangiare per contrastare la resistenza insulinica mattutina.")[cite: 1]
 
     # CASO 3: Valore nel Target
     if sugar <= target_max and sugar >= 100:
         return "Buongiorno! Ottimo risveglio, la tua glicemia è perfettamente nel target. Buona colazione!" [cite: 1]
 
     return "Buongiorno. Sei nel range, ma vicino al limite basso. Inizia la colazione senza attendere troppo." [cite: 1]
-    
+
 
 def getAdviceNightPhaseForInsulinDipendent(sugar, target_max, iob, target_ideal, isf):
     # CASO 1: Glicemia Alta
     if sugar > target_max:
         if iob > 0:
-            return f"Valore alto ({sugar} mg/dL), ma hai {iob} UI ancora attive. Per sicurezza, NON correggere ora: l'insulina sta ancora lavorando. Ricontrolla tra 2 ore."
+            return f"Valore alto ({sugar} mg/dL), ma hai {iob} unità di insulina ancora attive. Per sicurezza, NON correggere ora: l'insulina sta ancora lavorando. Ricontrolla tra 2 ore."
         else:
             # Calcolo prudente: puntiamo a stare sopra il target_ideal per la notte
-            safe_target = target_ideal + 30 
+            safe_target = target_ideal + 30
             needed_correction = round((sugar - safe_target) / isf, 1)
             if needed_correction > 0:
-                return f"Glicemia alta e nessuna insulina attiva. Valuta una piccola correzione di {needed_correction} UI per scendere con prudenza verso i {safe_target} mg/dL."
+                return f"Glicemia alta e nessuna insulina attiva. Valuta una piccola correzione di {needed_correction} unità di insulina per scendere con prudenza verso i {safe_target} mg/dL."
             return "Valore leggermente alto, ma preferibile per la notte. Riposa sereno."
 
     # CASO 2: Glicemia Bassa o al limite
     if sugar < 100:
-        if sugar < 70: # Corrisponde spesso al hypo_threshold 
+        if sugar < 70:  # Corrisponde spesso al hypo_threshold
             return "⚠️ Emergenza: Glicemia troppo bassa per dormire. Assumi zuccheri rapidi e uno spuntino proteico subito!"
         return "Valore al limite per la notte. Considera uno spuntino con carboidrati complessi (es. cracker o pane) per mantenere la stabilità."
 
@@ -274,14 +290,14 @@ def getAdviceNightPhaseForInsulinDipendent(sugar, target_max, iob, target_ideal,
 def getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf):
     if sugar > target_max:
         needed_correction = round((sugar - target_ideal) / isf, 1)
-        
+
         if iob == 0:
-            return f"Glicemia alta. Per tornare a {target_ideal} servirebbero {needed_correction} UI."
-        
+            return f"Glicemia alta. Per tornare a {target_ideal} servirebbero {needed_correction} unità di insulina."
+
         if iob >= needed_correction:
-            return f"Glicemia alta, ma coperta da {iob} UI di insulina attiva. Attendi."
-        
+            return f"Glicemia alta, ma coperta da {iob} unità di insulina di insulina attiva. Attendi."
+
         gap = round(needed_correction - iob, 1)
-        return f"L'insulina attiva ({iob} UI) non basta. Valuta integrazione di {gap} UI."
-    
+        return f"L'insulina attiva ({iob} unità di insulina) non basta. Valuta integrazione di {gap} unità di insulina."
+
     return "Ottimo, sei nel tuo target!"
