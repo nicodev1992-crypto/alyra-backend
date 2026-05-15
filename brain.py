@@ -153,6 +153,7 @@ def calculate_iob(insulin_value, insulin_time, duration_hours):
 def get_smart_advice(sugar, phase, profile, iob):
     d_type = profile['diabetes_type']  # Recuperato da USERDATA.csv
 
+    print(f"Il diabete è {d_type}")
     # 1. EMERGENZA (Uguale per tutti, ma il messaggio cambia con IOB)
     if sugar < profile['hypo_threshold']:
         return getAdviceForDangerousHypo(sugar, iob, profile)
