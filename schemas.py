@@ -16,6 +16,8 @@ class GlucoseCreate(BaseModel):
     recorded_at: datetime
     source_type: str
     phase: str
+    insulin_value: float
+    insulin_time: datetime
 
 
 class UserRegister(BaseModel):

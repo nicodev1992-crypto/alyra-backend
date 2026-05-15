@@ -8,15 +8,16 @@ import schemas
 # tutte le richieste che iniziano per brain arrivano qua
 router = APIRouter(prefix="/brain")
 
-#use for the glucose advices based on phase without meal and sport
+# use for the glucose advices based on phase without meal and sport
 # In brain.py
+
 
 @router.post("/glucose_advice")
 def add_glucose_and_get_advice(data: schemas.GlucoseCreate, db=Depends(get_db)):
     # 1. SALVATAGGIO (Quello che facevi prima)
     query = text("""
-        INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
-        VALUES (:u_id, :s_val, :r_at, :s_type, :ph)
+        INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase, insulin_value, insulin_time)
+        VALUES (:u_id, :s_val, :r_at, :s_type, :ph, :ins, :ins_time)
     """)
     try:
         db.execute(query, {
@@ -24,7 +25,9 @@ def add_glucose_and_get_advice(data: schemas.GlucoseCreate, db=Depends(get_db)):
             "s_val": data.sugar_value,
             "r_at": data.recorded_at,
             "s_type": data.source_type,
-            "ph": data.phase
+            "ph": data.phase,
+            "ins": data.insulin_value,
+            "ins_time": data.insulin_time
         })
         db.commit()
 
@@ -43,6 +46,8 @@ def add_glucose_and_get_advice(data: schemas.GlucoseCreate, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Funzione di supporto (sempre in brain.py)
+
+
 def get_glucose_advice_logic(sugar_value):
     if sugar_value < 70:
         return "Glicemia bassa! Mangia 15g di zuccheri rapidi."
