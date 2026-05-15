@@ -158,10 +158,10 @@ def get_smart_advice(sugar, phase, profile, iob):
         return getAdviceForDangerousHypo(sugar, iob, profile)
 
     # 2. DIVISIONE PER TIPO DI DIABETE
-    if d_type in ["Tipo 1", "LADA"]:
+    if d_type in ["type1", "LADA"]:
         return getAdviceInsulinDependent(sugar, phase, profile, iob)
 
-    elif d_type == "Gestational":
+    elif d_type == "gestational":
         return getAdviceGestational(sugar, phase, profile)
 
     else:  # Tipo 2 o "Other"
