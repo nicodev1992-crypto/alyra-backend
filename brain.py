@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -113,23 +113,25 @@ def check_active_insulin_dynamic(insulin_value, insulin_time, duration_hours):
 
 
 def calculate_iob(insulin_value, insulin_time, duration_hours):
-    """Calcola l'Insulina Attiva (IOB) residua."""
+    """Calcola l'Insulina Attiva (IOB) residua evitando crash di fuso orario."""
     if not insulin_value or insulin_value <= 0 or not insulin_time:
         return 0.0
 
-    # Conversione orario
     if isinstance(insulin_time, str):
-        # Gestisce i vari formati ISO che possono arrivare da Flutter
-        insulin_time = datetime.fromisoformat(
-            insulin_time.replace('Z', '+00:00'))
+        # Converte la stringa ISO e assicura che sia aware (UTC)
+        insulin_time = datetime.fromisoformat(insulin_time.replace('Z', '+00:00'))
+    
+    # Se insulin_time non ha fuso orario, glielo assegniamo (UTC)
+    if insulin_time.tzinfo is None:
+        insulin_time = insulin_time.replace(tzinfo=timezone.utc)
 
-    diff = datetime.now() - insulin_time
+    # Confronto tra due oggetti 'aware'
+    diff = datetime.now(timezone.utc) - insulin_time
     elapsed_hours = diff.total_seconds() / 3600
 
-    if elapsed_hours >= duration_hours:
+    if elapsed_hours >= duration_hours or elapsed_hours < 0:
         return 0.0
 
-    # Calcolo lineare semplice della rimanente
     remaining_perc = 1 - (elapsed_hours / duration_hours)
     return round(insulin_value * remaining_perc, 1)
 
@@ -185,19 +187,19 @@ def getAdviceForDangerousHypo(sugar, iob, profile):
 
 
 def getAdviceInsulinDependent(sugar, phase, profile, iob):
-    """Genera il consiglio basato su Glicemia, Fase e Insulina Attiva."""
+    """Correzione della chiamata a digiuno: ora passa tutti i parametri necessari."""
     target_ideal = profile['target_ideal']
     isf = profile['isf']
     target_max = profile['target_max']
+    hypo_threshold = profile['hypo_threshold']
 
     if phase == "notte":
-        return getAdviceNightPhaseForInsulinDipendent(sugar, target_max, iob)
+        return getAdviceNightPhaseForInsulinDipendent(sugar, target_max, iob, target_ideal, isf)
 
-    # 3. LOGICA PER FASE: DIGIUNO (Mattina)
     if phase == "digiuno":
-        return getAdviceDuringFastingForInsulinDipendent(sugar)
+        # Passiamo i parametri richiesti dalla firma della funzione
+        return getAdviceDuringFastingForInsulinDipendent(sugar, target_max, hypo_threshold, target_ideal, isf)
 
-    # 4. CALCOLO CORREZIONE (Fasi Generiche / Check)
     return getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf)
 
 # CONSIGLI PER GESTAZIONALE
