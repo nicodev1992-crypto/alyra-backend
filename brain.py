@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from datetime import datetime, timedelta, timezone
 import datetime
 
@@ -112,11 +113,9 @@ def check_active_insulin_dynamic(insulin_value, insulin_time, duration_hours):
     return round(insulin_value * remaining_perc, 1)
 
 
-from datetime import datetime, timezone
-
 def calculate_iob(insulin_value, insulin_time, duration_hours):
     """Calcola l'IOB residua gestendo errori di input e fusi orari."""
-    
+
     # 1. GESTIONE MANCANZA DATI: Se non c'è l'ora o il valore, IOB è 0
     if not insulin_value or insulin_value <= 0 or insulin_time is None:
         return 0.0
@@ -125,7 +124,8 @@ def calculate_iob(insulin_value, insulin_time, duration_hours):
         # 2. CONVERSIONE: Se è una stringa (ISO da Flutter), la trasformiamo in datetime
         if isinstance(insulin_time, str):
             # Gestisce il formato 'Z' di Flutter/Dart trasformandolo in offset +00:00
-            insulin_time = datetime.fromisoformat(insulin_time.replace('Z', '+00:00'))
+            insulin_time = datetime.fromisoformat(
+                insulin_time.replace('Z', '+00:00'))
 
         # 3. UNIFORMITÀ FUSO ORARIO: Forza UTC se l'oggetto è "naive"
         if insulin_time.tzinfo is None:
@@ -143,7 +143,7 @@ def calculate_iob(insulin_value, insulin_time, duration_hours):
         # Calcolo lineare della rimanente
         remaining_perc = 1 - (elapsed_hours / duration_hours)
         return round(insulin_value * remaining_perc, 1)
-        
+
     except Exception as e:
         # Se qualcosa va storto nella conversione, non crashare l'app
         print(f"Errore nel calcolo IOB: {e}")
@@ -179,7 +179,7 @@ def getAdviceForDangerousHypo(sugar, iob, profile):
                f"Assumi IMMEDIATAMENTE zuccheri liquidi (succo o acqua e zucchero).")
 
         if iob > 0:
-            msg += f" ATTENZIONE: Hai ancora {iob} UI di insulina attiva che peggioreranno la discesa."
+            msg += f" ATTENZIONE: Hai ancora {iob} unità di insulina attiva che peggioreranno la discesa."
         else:
             msg += " Nonostante l'insulina attiva sia a 0, il valore è pericoloso."
 
@@ -281,26 +281,50 @@ def getAdviceDuringFastingForInsulinDipendent(sugar, target_max, hypo_threshold,
 
 
 def getAdviceNightPhaseForInsulinDipendent(sugar, target_max, iob, target_ideal, isf):
+    # Calcolo della previsione (Glicemia stimata quando l'insulina finirà l'effetto)
+    # Formula: Glicemia Attuale - (Insulina Attiva * Sensibilità)
+    predicted_sugar = round(sugar - (iob * isf))
+
+    # Stringa della previsione da aggiungere ai messaggi
+    prediction_msg = f"\n\n🔮 Previsione: Quando l'insulina finirà l'effetto, sarai a circa {predicted_sugar} mg/dL."
+
     # CASO 1: Glicemia Alta
     if sugar > target_max:
         if iob > 0:
-            return f"Valore alto ({sugar} mg/dL), ma hai {iob} unità di insulina ancora attive. Per sicurezza, NON correggere ora: l'insulina sta ancora lavorando. Ricontrolla tra 2 ore."
+            # Se la previsione ci porta già nel target, rassicuriamo l'utente
+            if predicted_sugar <= target_max and predicted_sugar >= 80:
+                return f"Valore alto ({sugar} mg/dL), ma l'insulina attiva ti porterà a {predicted_sugar} durante la notte. Non correggere." + prediction_msg
+
+            return f"Valore alto ({sugar} mg/dL). Hai {iob} UI attive che ti porteranno a {predicted_sugar}. Attendi che finiscano l'effetto." + prediction_msg
+
         else:
-            # Calcolo prudente: puntiamo a stare sopra il target_ideal per la notte
+            # Calcolo prudente per la notte (puntiamo a un target più alto di 30mg/dL per sicurezza)
             safe_target = target_ideal + 30
             needed_correction = round((sugar - safe_target) / isf, 1)
             if needed_correction > 0:
-                return f"Glicemia alta e nessuna insulina attiva. Valuta una piccola correzione di {needed_correction} unità di insulina per scendere con prudenza verso i {safe_target} mg/dL."
-            return "Valore leggermente alto, ma preferibile per la notte. Riposa sereno."
+                return f"Glicemia alta e nessuna insulina attiva. Valuta {needed_correction} UI per scendere verso i {safe_target} mg/dL."
+            return "Valore leggermente alto, ma sicuro per la notte. Riposa sereno."
 
     # CASO 2: Glicemia Bassa o al limite
     if sugar < 100:
-        if sugar < 70:  # Corrisponde spesso al hypo_threshold
-            return "⚠️ Emergenza: Glicemia troppo bassa per dormire. Assumi zuccheri rapidi e uno spuntino proteico subito!"
-        return "Valore al limite per la notte. Considera uno spuntino con carboidrati complessi (es. cracker o pane) per mantenere la stabilità."
+        if sugar < 70:
+            return "⚠️ Emergenza: Glicemia troppo bassa! Assumi zuccheri rapidi (succo o glucosio) e uno spuntino subito."
 
-    # CASO 3: In Target
-    return "Glicemia perfetta per andare a dormire. Buonanotte!"
+        # Se siamo al limite e abbiamo pure insulina attiva, è molto rischioso
+        if iob > 0:
+            return f"Valore al limite ({sugar} mg/dL) e hai ancora insulina attiva! Rischio ipoglicemia grave a {predicted_sugar}. Mangia subito dei carboidrati!" + prediction_msg
+
+        return "Valore al limite per la notte. Considera uno spuntino con carboidrati complessi (es. cracker) per evitare cali."
+
+    # CASO 3: In Target (Glicemia tra 100 e target_max)
+    if iob > 0:
+        # Se siamo nel target ma la previsione ci porta sotto la soglia di sicurezza
+        if predicted_sugar < 90:
+            return f"Glicemia attuale ottima ({sugar}), ma l'insulina attiva ti porterà a {predicted_sugar}. Mangia un piccolo spuntino per non scendere troppo." + prediction_msg
+
+        return f"Glicemia perfetta. L'insulina attiva ti porterà a {predicted_sugar} mg/dL, un valore sicuro per la notte." + prediction_msg
+
+    return "Glicemia perfetta e nessuna insulina attiva. Buonanotte!"
 
 
 def getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf):
