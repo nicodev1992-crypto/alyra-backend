@@ -4,6 +4,7 @@ from sqlalchemy import text  # Importa direttamente la libreria
 from logger import logger
 from typing import Optional
 from database import get_db
+import brain
 
 # tutte le richieste che iniziano per get arrivano qua
 router = APIRouter(prefix="/get")
@@ -14,7 +15,9 @@ def wakeup():
     return {"status": "server is awake"}
 
 # USER
-@router.get("/user")   #USATA IN USERSERVICE
+
+
+@router.get("/user")  # USATA IN USERSERVICE
 def get_dati_by_ID(user_id: int, db=Depends(get_db)):
     logger.info(f"Richiesta nome profilo utente con id {user_id}")
 
@@ -33,7 +36,7 @@ def get_dati_by_ID(user_id: int, db=Depends(get_db)):
         return {"error": "Errore database"}
 
 
-@router.get("/user_exists")    #USATA IN USERSERVICE
+@router.get("/user_exists")  # USATA IN USERSERVICE
 def check_user_exists(user_id: int, db=Depends(get_db)):
     logger.info(f"Verifica esistenza utente id {user_id}")
 
@@ -55,7 +58,7 @@ def check_user_exists(user_id: int, db=Depends(get_db)):
         return {"exists": False, "error": str(e)}
 
 
-@router.get("/ricerca/id_utente")  #NON USATA
+@router.get("/ricerca/id_utente")  # NON USATA
 def get_id_utente_by_name_and_email(full_name: str, email: Optional[str] = None, phone_number: Optional[str] = None,
                                     db=Depends(get_db)
                                     ):
@@ -97,7 +100,8 @@ def get_id_utente_by_name_and_email(full_name: str, email: Optional[str] = None,
 
 # GET GLUCOSE
 
-@router.get("/last_glucose") 
+
+@router.get("/last_glucose")
 def get_last_glucose(user_id: int, db=Depends(get_db)):
     query = text("""
         SELECT g.sugar_value, g.phase, g.recorded_at
@@ -114,7 +118,8 @@ def get_last_glucose(user_id: int, db=Depends(get_db)):
             return {
                 "sugar_value": result["sugar_value"],
                 "phase": result["phase"],
-                "recorded_at": result["recorded_at"].isoformat() if result["recorded_at"] else None
+                "recorded_at": result["recorded_at"].isoformat() if result.get("recorded_at") else None,
+                "food_advice": brain.getFoodAdviceBasedOnGlucoseValue(result, user_id=user_id)
             }
         return None
     except Exception as e:

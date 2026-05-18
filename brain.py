@@ -264,7 +264,7 @@ def getAdviceType2(sugar, phase, profile):
 def getAdviceDuringFastingForInsulinDipendent(sugar, target_max, hypo_threshold, target_ideal, isf):
     # CASO 1: Ipoglicemia al risvegliogetAdviceForFastingfORiNSULINdIPENDENT
     if sugar < hypo_threshold:
-        return f"Attenzione: sveglia in ipoglicemia ({sugar}). Consuma subito 15g di carboidrati rapidi. Parlane con il medico: la basale potrebbe essere troppo alta." 
+        return f"Attenzione: sveglia in ipoglicemia ({sugar}). Consuma subito 15g di carboidrati rapidi. Parlane con il medico: la basale potrebbe essere troppo alta."
     # CASO 2: Valore Alto (Iperglicemia mattutina)
     if sugar > target_max:
         # Calcoliamo la correzione necessaria per la colazione
@@ -275,9 +275,9 @@ def getAdviceDuringFastingForInsulinDipendent(sugar, target_max, hypo_threshold,
 
     # CASO 3: Valore nel Target
     if sugar <= target_max and sugar >= 100:
-        return "Buongiorno! Ottimo risveglio, la tua glicemia è perfettamente nel target. Buona colazione!" 
+        return "Buongiorno! Ottimo risveglio, la tua glicemia è perfettamente nel target. Buona colazione!"
 
-    return "Buongiorno. Sei nel range, ma vicino al limite basso. Inizia la colazione senza attendere troppo." 
+    return "Buongiorno. Sei nel range, ma vicino al limite basso. Inizia la colazione senza attendere troppo."
 
 
 def getAdviceNightPhaseForInsulinDipendent(sugar, target_max, iob, target_ideal, isf):
@@ -341,3 +341,82 @@ def getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf)
         return f"L'insulina attiva ({iob} unità di insulina) non basta. Valuta integrazione di {gap} unità di insulina."
 
     return "Ottimo, sei nel tuo target!"
+
+
+def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db=Depends(get_db)):
+    user_profile = db.execute(
+        text("SELECT * FROM profiles WHERE id = :u_id"),
+        {"u_id": user_id}
+    ).mappings().first()
+
+    if not user_profile:
+        raise HTTPException(
+            status_code=404, detail="Profilo utente non trovato")
+        
+    glicemia_attuale = float(df_glucose['sugar_value'])
+    fase = df_glucose['phase']
+
+    # Soglie personalizzate (con valori di default medici standard)
+    soglia_ipo = user_profile.get('hypo_threshold', 70)
+    target_min = user_profile.get('target_min', 80)
+    target_max = user_profile.get('target_max', 140)
+
+    # 3. Logica di raccomandazione del CIBO
+    consiglio_cibo = ""
+    categoria_stato = ""
+
+    # CASO 1: IPOGLICEMIA (Servono zuccheri ultra-rapidi, NO grassi o proteine che rallentano l'assorbimento)
+    if glicemia_attuale <= soglia_ipo:
+        categoria_stato = "🔴 IPOGLICEMIA IMMEDIATA"
+        consiglio_cibo = (
+            "Serve zucchero semplice IMMEDIATO (circa 15g di carboidrati veloci).\n"
+            "Alimenti consigliati:\n"
+            "  - 1/2 bicchiere di Coca-Cola o aranciata (NON zero/diet)\n"
+            "  - 1 piccolo succo di frutta (circa 100-150ml)\n"
+            "  - 3 cucchiaini o bustine di zucchero sciolti in acqua\n"
+            "  - 4 compresse di glucosio/destrosio\n"
+            "⚠️ EVITA in questo momento: Cioccolato, merendine o biscotti (i grassi rallentano la risalita dello zucchero)."
+        )
+
+    # CASO 2: TENDENZA AL BASSO (Glicemia calante, serve stabilità)
+    elif soglia_ipo < glicemia_attuale < target_min:
+        categoria_stato = "🟡 GLICEMIA TENDENTE AL BASSO"
+        consiglio_cibo = (
+            "La glicemia è bassa ma non ancora in emergenza. Serve uno spuntino con carboidrati complessi "
+            "abbinati a una piccola quota di proteine o grassi per mantenere il livello stabile nel tempo.\n"
+            "Alimenti consigliati:\n"
+            "  - 1 pacchetto di cracker integrali\n"
+            "  - 1 fetta di pane di segale con un velo di formaggio spalmabile o bresaola\n"
+            "  - 1 mela o 1 pera piccola con 3-4 mandorle"
+        )
+
+    # CASO 3: IN TARGET (La glicemia va bene)
+    elif target_min <= glicemia_attuale <= target_max:
+        categoria_stato = "🟢 VALORE IN TARGET"
+        if "pasto" in str(fase).lower():
+            consiglio_cibo = (
+                f"Il valore è ottimo per la fase '{fase}'. Puoi procedere con il tuo pasto standard bilanciato.\n"
+                "Alimenti consigliati:\n"
+                "  - Un piatto unico con carboidrati complessi a basso indice glicemico (pasta/riso integrale, farro, quinoa)\n"
+                "  - Una buona porzione di verdure (fibre) e una fonte proteica (pesce, pollo, legumi)."
+            )
+        else:
+            consiglio_cibo = "Tutto perfetto. Se hai fame, prediligi uno snack leggero e bilanciato (es. uno yogurt bianco magro)."
+
+    # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
+    else:
+        categoria_stato = "🟠 IPERGLICEMIA / VALORE ALTO"
+        consiglio_cibo = (
+            f"Il valore è alto ({glicemia_attuale} mg/dL). Al momento è fondamentale evitare carboidrati e zuccheri.\n"
+            "Cosa fare/mangiare:\n"
+            "  - Prima di tutto: Bevi 1 o 2 grandi bicchieri d'acqua per aiutare i reni a smaltire il glucosio.\n"
+            "  - Se hai assolutamente fame, scegli alimenti che NON impattano sulla glicemia (Zero Carboidrati):\n"
+            "    * Qualche cubetto di parmigiano o grana\n"
+            "    * Una manciata di finocchi, sedano o cetrioli crudi\n"
+            "    * Un uovo sodo\n"
+            "    * Qualche gheriglio di noce o mandorla (senza esagerare)"
+        )
+
+    # Output finale pulito
+    return  consiglio_cibo
+       
