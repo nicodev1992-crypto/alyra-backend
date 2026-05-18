@@ -343,7 +343,7 @@ def getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf)
     return "Ottimo, sei nel tuo target!"
 
 
-def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db=Depends(get_db)):
+def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db):
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
         {"u_id": user_id}
