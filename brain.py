@@ -264,21 +264,20 @@ def getAdviceType2(sugar, phase, profile):
 def getAdviceDuringFastingForInsulinDipendent(sugar, target_max, hypo_threshold, target_ideal, isf):
     # CASO 1: Ipoglicemia al risvegliogetAdviceForFastingfORiNSULINdIPENDENT
     if sugar < hypo_threshold:
-        return f"Attenzione: sveglia in ipoglicemia ({sugar}). Consuma subito 15g di carboidrati rapidi. Parlane con il medico: la basale potrebbe essere troppo alta." [cite: 1]
-
+        return f"Attenzione: sveglia in ipoglicemia ({sugar}). Consuma subito 15g di carboidrati rapidi. Parlane con il medico: la basale potrebbe essere troppo alta." 
     # CASO 2: Valore Alto (Iperglicemia mattutina)
     if sugar > target_max:
         # Calcoliamo la correzione necessaria per la colazione
-        needed_correction = round((sugar - target_ideal) / isf, 1)[cite: 1]
+        needed_correction = round((sugar - target_ideal) / isf, 1)
         return (f"Buongiorno. Valore alto al risveglio ({sugar}). "
                 f"Valuta di aggiungere {needed_correction} unità di insulina al bolo della colazione "
-                f"e attendi 10-15 minuti prima di mangiare per contrastare la resistenza insulinica mattutina.")[cite: 1]
+                f"e attendi 10-15 minuti prima di mangiare per contrastare la resistenza insulinica mattutina.")
 
     # CASO 3: Valore nel Target
     if sugar <= target_max and sugar >= 100:
-        return "Buongiorno! Ottimo risveglio, la tua glicemia è perfettamente nel target. Buona colazione!" [cite: 1]
+        return "Buongiorno! Ottimo risveglio, la tua glicemia è perfettamente nel target. Buona colazione!" 
 
-    return "Buongiorno. Sei nel range, ma vicino al limite basso. Inizia la colazione senza attendere troppo." [cite: 1]
+    return "Buongiorno. Sei nel range, ma vicino al limite basso. Inizia la colazione senza attendere troppo." 
 
 
 def getAdviceNightPhaseForInsulinDipendent(sugar, target_max, iob, target_ideal, isf):
