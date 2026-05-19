@@ -198,19 +198,19 @@ def insert_unified_log(
         if meal_data.carbs_grams > 0:
             query_meal = text("""
                 INSERT INTO meals (
-                    user_id, description, carbs_grams, sugars_grams, 
+                    user_id, name, carbs_grams, sugars_grams, 
                     fats_grams, proteins_grams, fibers_grams, 
                     glycemic_index, notes, consumed_at
                 )
                 VALUES (
-                    :u_id, :desc, :carb, :sug, 
+                    :u_id, :name, :carb, :sug, 
                     :fat, :prot, :fib, 
                     :g_idx, :not, :at
                 )
             """)
             db.execute(query_meal, {
                 "u_id": u_id,
-                "desc": meal_data.name or "Pasto",
+                "name": meal_data.name or "Pasto",
                 "carb": meal_data.carbs_grams,
                 "sug": meal_data.sugars_grams,
                 "fat": meal_data.fats_grams,
