@@ -119,33 +119,6 @@ def add_glucose(data: schemas.GlucoseData, db=Depends(get_db)):
 
 # MEAL
 
-
-@router.post("/insert/last_meal")
-def insert_last_meal(meal: schemas.MealData, db=Depends(get_db)):
-    logger.info(
-        f"Tentativo inserimento ultimo pasto utente con id {meal.user_id}")
-
-    query = text("""
-                 INSERT INTO meals (user_id, description, carbs_grams, consumed_at)
-                 VALUES (:u_id,:desc,:carb,:consumed);
-                 """)
-    try:
-        db.execute(query, {
-            "u_id": meal.user_id,
-            "desc": meal.description,
-            "carb": meal.carbs_grams,
-            "consumed": meal.consumed_at
-        })  # fai la query scritta in sql
-
-        db.commit()  # <--- Ricorda le parentesi!
-        return {"status": "Pasto inserito correttamente"}
-    except SQLAlchemyError as e:
-        logger.error(f"❌ Errore nella query: {e}")
-        return {"error": "Errore database"}
-
-    # INDEFINITI
-
-
 @router.post("/glucose_meal")
 def insert_glucose_meal(glucose_data: schemas.GlucoseData, meal_data: schemas.MealData, db=Depends(get_db)):
     try:
