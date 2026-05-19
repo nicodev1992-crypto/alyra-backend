@@ -14,7 +14,7 @@ router = APIRouter(prefix="/brain")
 
 
 @router.post("/glucose_advice")
-def add_glucose_and_get_advice(data: schemas.GlucoseCreate, db=Depends(get_db)):
+def add_glucose_and_get_advice(data: schemas.GlucoseData, db=Depends(get_db)):
     # 1. Recupero profilo utente completo
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
@@ -177,7 +177,7 @@ def getAdviceForDangerousHypo(sugar, iob, profile):
     # 1. EMERGENZA SEVERA (<55)
     if sugar < 55:
         msg = (f"🚨 EMERGENZA: Glicemia criticamente bassa ({sugar} mg/dL). "
-               f"Assumi IMMEDIATAMENTE zuccheri liquidi (succo o acqua e zucchero).")
+               f"CONSIGLIO:Assumi IMMEDIATAMENTE zuccheri liquidi (succo o acqua e zucchero).")
 
         if iob > 0:
             msg += f" ATTENZIONE: Hai ancora {iob} unità di insulina attiva che peggioreranno la discesa."

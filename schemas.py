@@ -10,7 +10,7 @@ class SourceType(str, Enum):
     IMPORTED = "Imported"
 
 
-class GlucoseCreate(BaseModel):
+class GlucoseData(BaseModel):
     user_id: int
     sugar_value: float
     recorded_at: datetime

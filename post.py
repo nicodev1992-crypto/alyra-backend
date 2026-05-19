@@ -98,7 +98,7 @@ def login_user(credentials: dict, db=Depends(get_db)):
 # GLUCOSE
 
 @router.post("/glucose")
-def add_glucose(data: schemas.GlucoseCreate, db=Depends(get_db)):
+def add_glucose(data: schemas.GlucoseData, db=Depends(get_db)):
     query = text("""
         INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
         VALUES (:u_id, :s_val, :r_at, :s_type, :ph)
@@ -146,31 +146,94 @@ def insert_last_meal(meal: schemas.MealData, db=Depends(get_db)):
     # INDEFINITI
 
 
-@router.post("/insert/unified_log")
-def insert_unified_log(data: schemas.UnifiedRequest, db=Depends(get_db)):
+@router.post("/glucose_meal")
+def insert_glucose_meal(glucose_data: schemas.GlucoseData, meal_data: schemas.MealData, db=Depends(get_db)):
     try:
-        # 1. Gestione Glicemia [cite: 3]
-        if data.sugar_value:
-            db.execute(text("""
-                INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase)
-                VALUES (:u_id, :s_val, :r_at, 'Manual', :ph)
-            """), {"u_id": data.user_id, "s_val": data.sugar_value, "r_at": data.recorded_at, "ph": data.phase})
+        print('Trying')
+    except:
+        print('Error')
 
-        # 2. Gestione Pasto [cite: 1]
-        if data.carbs_grams:
-            db.execute(text("""
-                INSERT INTO meals (user_id, description, carbs_grams, consumed_at)
-                VALUES (:u_id, :desc, :carb, :at)
-            """), {"u_id": data.user_id, "desc": data.description or "Pasto", "carb": data.carbs_grams, "at": data.recorded_at})
 
-        # 3. Gestione Insulina (Tabella da creare nel tuo DB)
-        if data.insulin_units:
-            # Qui dovresti inserire i dati in una tabella 'insulin_logs'
-            pass
+@router.post("/glucose_post_meal")
+def insert_unified_log(
+    glucose_data: schemas.GlucoseData,
+    meal_data: schemas.MealData,
+    db=Depends(get_db)
+):
+    try:
+        # Usa il campo user_id da uno dei due modelli (es. glucose_data)
+        u_id = glucose_data.user_id
 
+        # 1. Controllo se il profilo utente esiste
+        user_profile = db.execute(
+            text("SELECT id FROM profiles WHERE id = :u_id"),
+            {"u_id": u_id}
+        ).mappings().first()
+
+        if not user_profile:
+            raise HTTPException(
+                status_code=404, detail="Profilo utente non trovato")
+
+        # 2. SALVATAGGIO GLICEMIA + INSULINA
+        # Controlla se l'utente ha inserito una glicemia valida (es. maggiore di 0)
+        if glucose_data.sugar_value > 0:
+            query_glucose = text("""
+                INSERT INTO glucose (user_id, sugar_value, recorded_at, source_type, phase, insulin_value, insulin_time)
+                VALUES (:u_id, :s_val, :r_at, :s_type, :ph, :ins, :ins_time)
+            """)
+            db.execute(query_glucose, {
+                "u_id": u_id,
+                "s_val": glucose_data.sugar_value,
+                "r_at": glucose_data.recorded_at,
+                "s_type": glucose_data.source_type,
+                "ph": glucose_data.phase,
+                # Se non c'è, Pydantic passerà None -> NULL nel DB
+                "ins": glucose_data.insulin_value,
+                # Se non c'è, Pydantic passerà None -> NULL nel DB
+                "ins_time": glucose_data.insulin_time
+            })
+
+        # 3. SALVATAGGIO PASTO (Mancava completamente!)
+        # Salva il pasto solo se l'utente sta effettivamente mangiando qualcosa
+        if meal_data.carbs_grams > 0:
+            query_meal = text("""
+                INSERT INTO meals (
+                    user_id, description, carbs_grams, sugars_grams, 
+                    fats_grams, proteins_grams, fibers_grams, 
+                    glycemic_index, notes, consumed_at
+                )
+                VALUES (
+                    :u_id, :desc, :carb, :sug, 
+                    :fat, :prot, :fib, 
+                    :g_idx, :not, :at
+                )
+            """)
+            db.execute(query_meal, {
+                "u_id": u_id,
+                "desc": meal_data.name or "Pasto",
+                "carb": meal_data.carbs_grams,
+                "sug": meal_data.sugars_grams,
+                "fat": meal_data.fats_grams,
+                "prot": meal_data.proteins_grams,
+                "fib": meal_data.fibers_grams,
+                "g_idx": meal_data.glycemic_index,
+                "not": meal_data.notes,
+                "at": meal_data.consumed_at
+            })
+
+        # Se tutto è andato a buon fine, fa il commit di entrambe le tabelle
         db.commit()
-        return {"status": "success"}
+        return {"status": "success",
+                "message": "Dati salvati correttamente",
+                "advice": "Ottimo pranzetto!"
+                }
+
+    except HTTPException as http_ex:
+        # Se l'errore è il 404 del profilo, non serve fare rollback ma lo rilanciamo
+        db.rollback()
+        raise http_ex
     except Exception as e:
+        # In caso di errore SQL o di connessione, annulla tutto
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
