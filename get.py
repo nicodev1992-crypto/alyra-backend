@@ -132,8 +132,7 @@ def get_last_glucose(user_id: int, db=Depends(get_db)):
 @router.get("/last_meal")  # USATA IN MEALSERVICE
 def get_last_meal(user_id: int, db=Depends(get_db)):
     query = text("""
-        SELECT m.description, m.carbs_grams, m.consumed_at
-        FROM meals m
+        SELECT * FROM meals m
         WHERE m.user_id = :u_id
         ORDER BY m.consumed_at DESC
         LIMIT 1
