@@ -173,17 +173,18 @@ def insert_unified_log(
                 INSERT INTO meals (
                     user_id, name, carbs_grams, sugars_grams, 
                     fats_grams, proteins_grams, fibers_grams, 
-                    glycemic_index, notes, consumed_at
+                    glycemic_index, notes, consumed_at, meal_grams
                 )
                 VALUES (
                     :u_id, :name, :carb, :sug, 
                     :fat, :prot, :fib, 
-                    :g_idx, :not, :at
+                    :g_idx, :not, :at, :m_grams
                 )
             """)
             db.execute(query_meal, {
                 "u_id": u_id,
                 "name": meal_data.name or "Pasto",
+                "m_grams": meal_data.meal_grams,
                 "carb": meal_data.carbs_grams,
                 "sug": meal_data.sugars_grams,
                 "fat": meal_data.fats_grams,

@@ -62,7 +62,8 @@ class Phase(str, Enum):
 
 class MealData(BaseModel):
     user_id: int
-    name: str                        # Cambiato da description a name per allinearsi alla query
+    name: str   
+    meal_grams:float # Cambiato da description a name per allinearsi alla query
     carbs_grams: float
     sugars_grams: float              # Mancava
     fats_grams: float                # Mancava
