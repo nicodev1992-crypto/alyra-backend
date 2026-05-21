@@ -433,95 +433,35 @@ def getPostMealFoodAdvice(glucose_data, meal_data, user_id: int, db) -> str:
             status_code=404, detail="Profilo utente non trovato")
 
     current_glucose = float(glucose_data.sugar_value or 0.0)
-    phase = str(glucose_data.phase or "").lower()
-
-    # Trasformiamo il modello Pydantic in un dizionario per usare .get() in totale sicurezza
-    # Se usi una versione vecchia di Pydantic usa meal_data.dict(), se usi Pydantic v2 usa meal_data.model_dump()
-    try:
-        meal_dict = meal_data.model_dump()
-    except AttributeError:
-        meal_dict = meal_data.dict()
-
-    # Estrazione sicura al 100%: se il dato è None o manca, diventa 0.0
-    meal_carbs = float(meal_dict.get('carbs_grams') or 0.0)
-    meal_fats = float(meal_dict.get('fats_grams') or 0.0)
-    meal_proteins = float(meal_dict.get('proteins_grams') or 0.0)
-    meal_fibers = float(meal_dict.get('fibers_grams') or 0.0)
-    glycemic_index = str(meal_dict.get('glycemic_index') or "").lower()
 
     # Soglie personalizzate (o default clinici)
     hypo_threshold = user_profile.get('hypo_threshold', 70)
     target_min = user_profile.get('target_min', 80)
     target_max = user_profile.get('target_max', 140)
 
-    # 2. LOGICA DI CONTROLLO
+    # 2. LOGICA DI CONTROLLO ESCLUSIVA PER IL POST-PASTO
 
     # --- CASO 1: IPOGLICEMIA IMMEDIATA ---
     if current_glucose <= hypo_threshold:
-        if "post" in phase:
-            return (
-                f"🚨 ALLERTA IPOGLICEMIA POST-PASTO ({current_glucose} mg/dL)!\n"
-                "La glicemia è scesa sotto la soglia di sicurezza. Questo può capitare per un dosaggio eccessivo di insulina o per un forte anticipo.\n\n"
-                "COSA FARE IMMEDIATAMENTE:\n"
-                "1. Assumi subito 15g di carboidrati a rapido assorbimento (es. 3 bustine di zucchero sciolte in acqua, 150ml di succo di frutta o mezza lattina di Coca-Cola normale).\n"
-                "2. Riposati e ricontrolla il valore tra 15 minuti."
-            )
-        else:
-            if meal_carbs > 0 and (meal_fats > 5 or meal_proteins > 5):
-                return (
-                    "⚠️ ATTENZIONE: Sei in IPOGLICEMIA! Questo pasto contiene grassi o proteine che "
-                    "rallenteranno l'assorbimento degli zuccheri di cui hai bisogno subito.\n\n"
-                    "COSA FARE ORA:\n"
-                    "1. Ferma temporaneamente il pasto.\n"
-                    "2. Prendi SUBITO 15g di zuccheri ultra-rapidi (es. un succo di frutta o 3 bustine di zucchero in acqua).\n"
-                    "3. Attendi 15 minuti, ricontrolla la glicemia e riprendi a mangiare il resto solo quando sarai fuori pericolo."
-                )
-            else:
-                return (
-                    "🔴 IPOGLICEMIA IMMEDIATA PRE-PASTO! Serve zucchero semplice IMMEDIATO.\n"
-                    "Assumi circa 15g di carboidrati veloci (1 piccolo succo di frutta o 3 cucchiaini di zucchero in acqua)."
-                )
+        return (
+            f"🚨 ALLERTA IPOGLICEMIA POST-PASTO ({current_glucose} mg/dL)!\n"
+            "La glicemia è scesa sotto la soglia di sicurezza. Questo può capitare per un dosaggio eccessivo di insulina o per un forte anticipo.\n\n"
+            "COSA FARE IMMEDIATAMENTE:\n"
+            "1. Assumi subito 15g di carboidrati a rapido assorbimento (es. 3 bustine di zucchero sciolte in acqua, 150ml di succo di frutta o mezza lattina di Coca-Cola normale).\n"
+            "2. Riposati e ricontrolla il valore tra 15 minuti."
+        )
 
     # --- CASO 2: TENDENZA AL BASSO ---
     elif hypo_threshold < current_glucose < target_min:
-        if "post" in phase:
-            return f"🟡 Glicemia post-prandiale tendente al basso ({current_glucose} mg/dL). Monitora il trend, se scende ancora assumi un piccolo snack."
-        else:
-            if meal_carbs > 0:
-                if glycemic_index in ["fast", "veloce"]:
-                    return f"🟡 Glicemia pre-pasto tendente al basso ({current_glucose} mg/dL). Il pasto ha un Indice Glicemico VELOCE: farà risalire subito il valore, ma occhio ai cali successivi."
-                else:
-                    return f"🟢 Ottima scelta! La tua glicemia è tendente al basso ({current_glucose} mg/dL) e stai inserendo un pasto con carboidrati bilanciati."
-            else:
-                return f"🟡 La glicemia è bassa ({current_glucose} mg/dL) e non stai introducendo carboidrati. Valuta di aggiungere un piccolo snack carboidratico."
+        return f"🟡 Glicemia post-prandiale tendente al basso ({current_glucose} mg/dL). Monitora il trend, se scende ancora assumi un piccolo snack."
 
     # --- CASO 3: IN TARGET ---
     elif target_min <= current_glucose <= target_max:
-        if "post" in phase:
-            return f"🟢 Glicemia Post-Pasto in perfetto target ({current_glucose} mg/dL)! Ottima gestione del pasto precedente."
-        else:
-            if meal_carbs > 0:
-                if glycemic_index in ["fast", "veloce"] and meal_fibers < 3.0:
-                    return f"🟢 Sei in target ({current_glucose} mg/dL), ma questo pasto ha un indice glicemico VELOCE ed è povero di fibre. ⚠️ Rischio picco post-prandiale! Valuta bene l'anticipo dell'insulina."
-                elif glycemic_index in ["slow", "lento"] or meal_fibers >= 4.0:
-                    return f"🟢 Valore perfetto ({current_glucose} mg/dL) e pasto eccellente! L'alto contenuto di fibre garantisce un assorbimento graduale."
-                else:
-                    return f"🟢 Glicemia in target ({current_glucose} mg/dL). Puoi procedere con il tuo pasto standard."
-            else:
-                return f"🟢 Tutto perfetto ({current_glucose} mg/dL). Non ci sono carboidrati, il valore resterà stabile."
+        return f"🟢 Glicemia Post-Pasto in perfetto target ({current_glucose} mg/dL)! Ottima gestione del pasto precedente."
 
     # --- CASO 4: IPERGLICEMIA ---
     else:
-        if "post" in phase:
-            return (
-                f"🚨 IPERGLICEMIA POST-PASTO ({current_glucose} mg/dL)!\n"
-                "La glicemia dopo il pasto è alta. Valuta se è necessaria una dose di correzione (bolo di correzione tramite ISF) e bevi molta acqua per aiutare i reni."
-            )
-        else:
-            if meal_carbs > 0:
-                return (
-                    f"🚨 ATTENZIONE: La tua glicemia pre-pasto è ALTA ({current_glucose} mg/dL) e stai inserendo un pasto con {meal_carbs}g di Carboidrati!\n"
-                    f"Calcola accuratamente l'insulina includendo il tuo fattore di correzione (ISF) e, se puoi, riduci la porzione di carboidrati a favore di verdure."
-                )
-            else:
-                return f"🟠 Glicemia pre-pasto alta ({current_glucose} mg/dL). Hai scelto correttamente un pasto a zero carboidrati per placare la fame senza peggiorare la situazione."
+        return (
+            f"🚨 IPERGLICEMIA POST-PASTO ({current_glucose} mg/dL)!\n"
+            "La glicemia dopo il pasto è alta. Valuta se è necessaria una dose di correzione (bolo di correzione tramite ISF) e bevi molta acqua per aiutare i reni."
+        )
