@@ -352,7 +352,7 @@ def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db):
     if not user_profile:
         raise HTTPException(
             status_code=404, detail="Profilo utente non trovato")
-        
+
     glicemia_attuale = float(df_glucose['sugar_value'])
     fase = df_glucose['phase']
 
@@ -418,112 +418,110 @@ def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db):
         )
 
     # Output finale pulito
-    return  consiglio_cibo
+    return consiglio_cibo
 
 
-def getPostMealFoodAdvice(
-    glucose_data: schemas.GlucoseData, 
-    meal_data: schemas.MealData, 
-    user_id: int, 
-    db
-) -> str:
-    # 1. Fetch user profile for customized medical thresholds
+def getPostMealFoodAdvice(glucose_data, meal_data, user_id: int, db) -> str:
+    # 1. Recupero del profilo utente per le soglie mediche personalizzate
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
         {"u_id": user_id}
     ).mappings().first()
 
     if not user_profile:
-        raise HTTPException(status_code=404, detail="Profilo utente non trovato")
-        
-    current_glucose = float(glucose_data.sugar_value)
-    phase = glucose_data.phase
+        raise HTTPException(
+            status_code=404, detail="Profilo utente non trovato")
 
-    # Extract macronutrients from the entered meal
-    meal_carbs = float(meal_data.carbs_grams or 0.0)
-    meal_sugars = float(meal_data.sugars_grams or 0.0)
-    meal_fats = float(meal_data.fats_grams or 0.0)
-    meal_proteins = float(meal_data.proteins_grams or 0.0)
-    meal_fibers = float(meal_data.fibers_grams or 0.0)
-    glycemic_index = str(meal_data.glycemic_index or "").lower()
+    current_glucose = float(glucose_data.sugar_value or 0.0)
+    phase = str(glucose_data.phase or "").lower()
 
-    # Personalized thresholds (or standard clinical defaults)
+    # Trasformiamo il modello Pydantic in un dizionario per usare .get() in totale sicurezza
+    # Se usi una versione vecchia di Pydantic usa meal_data.dict(), se usi Pydantic v2 usa meal_data.model_dump()
+    try:
+        meal_dict = meal_data.model_dump()
+    except AttributeError:
+        meal_dict = meal_data.dict()
+
+    # Estrazione sicura al 100%: se il dato è None o manca, diventa 0.0
+    meal_carbs = float(meal_dict.get('carbs_grams') or 0.0)
+    meal_fats = float(meal_dict.get('fats_grams') or 0.0)
+    meal_proteins = float(meal_dict.get('proteins_grams') or 0.0)
+    meal_fibers = float(meal_dict.get('fibers_grams') or 0.0)
+    glycemic_index = str(meal_dict.get('glycemic_index') or "").lower()
+
+    # Soglie personalizzate (o default clinici)
     hypo_threshold = user_profile.get('hypo_threshold', 70)
     target_min = user_profile.get('target_min', 80)
     target_max = user_profile.get('target_max', 140)
 
-    # 2. CROSS-REFERENCED LOGIC: GLUCOSE + MEAL NUTRIENTS
-    
-    # --- CASE 1: IMMEDIATE HYPOGLYCEMIA ---
+    # 2. LOGICA DI CONTROLLO
+
+    # --- CASO 1: IPOGLICEMIA IMMEDIATA ---
     if current_glucose <= hypo_threshold:
-        # If the user is trying to eat a complex meal, slowing down the glucose rise
-        if meal_carbs > 0 and (meal_fats > 5 or meal_proteins > 5):
+        if "post" in phase:
             return (
-                "⚠️ ATTENZIONE: Sei in IPOGLICEMIA! Questo pasto contiene troppi grassi o proteine che "
-                "rallenteranno l'assorbimento degli zuccheri.\n\n"
-                "COSA FARE ORA:\n"
-                "1. Ferma temporaneamente il pasto.\n"
-                "2. Prendi SUBITO 15g di zuccheri ultra-rapidi (es. 1/2 bicchiere di Coca-Cola normale, un succo di frutta o 3 bustine di zucchero sciolte in acqua).\n"
-                "3. Attendi 15 minutes, ricontrolla la glicemia e riprendi a mangiare solo quando sarai fuori pericolo."
+                f"🚨 ALLERTA IPOGLICEMIA POST-PASTO ({current_glucose} mg/dL)!\n"
+                "La glicemia è scesa sotto la soglia di sicurezza. Questo può capitare per un dosaggio eccessivo di insulina o per un forte anticipo.\n\n"
+                "COSA FARE IMMEDIATAMENTE:\n"
+                "1. Assumi subito 15g di carboidrati a rapido assorbimento (es. 3 bustine di zucchero sciolte in acqua, 150ml di succo di frutta o mezza lattina di Coca-Cola normale).\n"
+                "2. Riposati e ricontrolla il valore tra 15 minuti."
             )
         else:
-            return (
-                "🔴 IPOGLICEMIA IMMEDIATA! Serve zucchero semplice IMMEDIATO.\n"
-                "Assumi circa 15g di carboidrati veloci (1 piccolo succo di frutta o 3 cucchiaini di zucchero in acqua).\n"
-                "⚠️ EVITA ORA: Cioccolato, merendine o biscotti (i grassi bloccano la risalita dello zucchero)."
-            )
+            if meal_carbs > 0 and (meal_fats > 5 or meal_proteins > 5):
+                return (
+                    "⚠️ ATTENZIONE: Sei in IPOGLICEMIA! Questo pasto contiene grassi o proteine che "
+                    "rallenteranno l'assorbimento degli zuccheri di cui hai bisogno subito.\n\n"
+                    "COSA FARE ORA:\n"
+                    "1. Ferma temporaneamente il pasto.\n"
+                    "2. Prendi SUBITO 15g di zuccheri ultra-rapidi (es. un succo di frutta o 3 bustine di zucchero in acqua).\n"
+                    "3. Attendi 15 minuti, ricontrolla la glicemia e riprendi a mangiare il resto solo quando sarai fuori pericolo."
+                )
+            else:
+                return (
+                    "🔴 IPOGLICEMIA IMMEDIATA PRE-PASTO! Serve zucchero semplice IMMEDIATO.\n"
+                    "Assumi circa 15g di carboidrati veloci (1 piccolo succo di frutta o 3 cucchiaini di zucchero in acqua)."
+                )
 
-    # --- CASE 2: TRENDING LOW ---
+    # --- CASO 2: TENDENZA AL BASSO ---
     elif hypo_threshold < current_glucose < target_min:
-        if meal_carbs > 0:
-            if glycemic_index == "fast" or glycemic_index == "veloce":
-                return (
-                    f"🟡 Glicemia tendente al basso ({current_glucose} mg/dL). Il pasto inserito ha un Indice Glicemico VELOCE.\n"
-                    "Va bene per far risalire subito il valore, ma monitora la glicemia tra 2 ore: c'è il rischio di un picco seguito da un nuovo rapido calo."
-                )
-            else:
-                return (
-                    f"🟢 Ottima scelta! La tua glicemia è tendente al basso ({current_glucose} mg/dL) e stai inserendo un pasto "
-                    f"con carboidrati bilanciati. Grassi ({meal_fats}g) and proteine ({meal_proteins}g) aiuteranno a mantenere la glicemia stabile nel tempo."
-                )
+        if "post" in phase:
+            return f"🟡 Glicemia post-prandiale tendente al basso ({current_glucose} mg/dL). Monitora il trend, se scende ancora assumi un piccolo snack."
         else:
-            return (
-                f"🟡 La glicemia è bassa ({current_glucose} mg/dL) e non stai introducendo carboidrati.\n"
-                "Ti consigliamo di aggiungere una piccola quota di carboidrati complessi (es. 1 pacchetto di cracker integrali o una fetta di pane) per stabilizzare il trend."
-            )
+            if meal_carbs > 0:
+                if glycemic_index in ["fast", "veloce"]:
+                    return f"🟡 Glicemia pre-pasto tendente al basso ({current_glucose} mg/dL). Il pasto ha un Indice Glicemico VELOCE: farà risalire subito il valore, ma occhio ai cali successivi."
+                else:
+                    return f"🟢 Ottima scelta! La tua glicemia è tendente al basso ({current_glucose} mg/dL) e stai inserendo un pasto con carboidrati bilanciati."
+            else:
+                return f"🟡 La glicemia è bassa ({current_glucose} mg/dL) e non stai introducendo carboidrati. Valuta di aggiungere un piccolo snack carboidratico."
 
-    # --- CASE 3: IN TARGET (Blood sugar is fine) ---
+    # --- CASO 3: IN TARGET ---
     elif target_min <= current_glucose <= target_max:
-        if meal_carbs > 0:
-            # Check for fibers on refined, high-GI meals
-            if (glycemic_index == "fast" or glycemic_index == "veloce") and meal_fibers < 3.0:
+        if "post" in phase:
+            return f"🟢 Glicemia Post-Pasto in perfetto target ({current_glucose} mg/dL)! Ottima gestione del pasto precedente."
+        else:
+            if meal_carbs > 0:
+                if glycemic_index in ["fast", "veloce"] and meal_fibers < 3.0:
+                    return f"🟢 Sei in target ({current_glucose} mg/dL), ma questo pasto ha un indice glicemico VELOCE ed è povero di fibre. ⚠️ Rischio picco post-prandiale! Valuta bene l'anticipo dell'insulina."
+                elif glycemic_index in ["slow", "lento"] or meal_fibers >= 4.0:
+                    return f"🟢 Valore perfetto ({current_glucose} mg/dL) e pasto eccellente! L'alto contenuto di fibre garantisce un assorbimento graduale."
+                else:
+                    return f"🟢 Glicemia in target ({current_glucose} mg/dL). Puoi procedere con il tuo pasto standard."
+            else:
+                return f"🟢 Tutto perfetto ({current_glucose} mg/dL). Non ci sono carboidrati, il valore resterà stabile."
+
+    # --- CASO 4: IPERGLICEMIA ---
+    else:
+        if "post" in phase:
+            return (
+                f"🚨 IPERGLICEMIA POST-PASTO ({current_glucose} mg/dL)!\n"
+                "La glicemia dopo il pasto è alta. Valuta se è necessaria una dose di correzione (bolo di correzione tramite ISF) e bevi molta acqua per aiutare i reni."
+            )
+        else:
+            if meal_carbs > 0:
                 return (
-                    f"🟢 Sei perfettamente in target ({current_glucose} mg/dL), ma questo pasto ha un indice glicemico VELOCE ed è povero di fibre ({meal_fibers}g).\n"
-                    "⚠️ Rischio picco post-prandiale! Valuta con cura l'anticipo dell'insulina o, se puoi, aggiungi una porzione di verdura cruda (fibre) per rallentare l'assorbimento."
-                )
-            elif glycemic_index == "slow" or glycemic_index == "lento" or meal_fibers >= 4.0:
-                return (
-                    f"🟢 Valore perfetto ({current_glucose} mg/dL) e pasto eccellente! L'alto contenuto di fibre e l'indice glicemico lento garantiscono "
-                    "un assorbimento graduale senza picchi improvvisi. Procedi pure!"
+                    f"🚨 ATTENZIONE: La tua glicemia pre-pasto è ALTA ({current_glucose} mg/dL) e stai inserendo un pasto con {meal_carbs}g di Carboidrati!\n"
+                    f"Calcola accuratamente l'insulina includendo il tuo fattore di correzione (ISF) e, se puoi, riduci la porzione di carboidrati a favore di verdure."
                 )
             else:
-                return f"🟢 Glicemia in target ({current_glucose} mg/dL). Puoi procedere con il tuo pasto standard bilanciato."
-        else:
-            return f"🟢 Tutto perfetto ({current_glucose} mg/dL). Non stai introducendo carboidrati, il valore resterà stabile."
-
-    # --- CASE 4: HYPERGLYCEMIA / HIGH VALUE ---
-    else:
-        if meal_carbs > 0:
-            return (
-                f"🚨 ATTENZIONE: La tua glicemia è ALTA ({current_glucose} mg/dL) e stai inserendo un pasto ricco di Carboidrati ({meal_carbs}g)!\n\n"
-                f"Consigli terapeutici:\n"
-                f"- Se decidi di mangiare comunque, è fondamentale calcolare accuratamente la dose di insulina includendo il tuo fattore di correzione (ISF).\n"
-                f"- Se possibile, riduci la quota di carboidrati, dando la priorità a proteine e verdure.\n"
-                f"- Bevi subito 1-2 grandi bicchieri d'acqua per aiutare i reni a smaltire il glucosio in eccesso."
-            )
-        else:
-            return (
-                f"🟠 Glicemia alta ({current_glucose} mg/dL). Hai scelto correttamente un pasto a ZERO o pochissimi carboidrati.\n"
-                "Ottimo per placare la fame senza peggiorare l'iperglicemia. Ricordati di idratarti molto bevendo acqua."
-            )
-       
+                return f"🟠 Glicemia pre-pasto alta ({current_glucose} mg/dL). Hai scelto correttamente un pasto a zero carboidrati per placare la fame senza peggiorare la situazione."
