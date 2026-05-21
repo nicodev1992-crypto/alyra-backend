@@ -205,7 +205,7 @@ def insert_unified_log(
             db.commit()
             return {"status": "success",
                     "message": "Dati salvati correttamente",
-                    "food_advice": brain.getPostMealFoodAdvice(glucose_data, meal_data, glucose_data.user_id, db=db)
+                    "advice": "Post"#brain.getPostMealFoodAdvice(glucose_data, meal_data, glucose_data.user_id, db=db)
                     }
 
     except HTTPException as http_ex:
