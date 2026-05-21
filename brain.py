@@ -419,4 +419,111 @@ def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db):
 
     # Output finale pulito
     return  consiglio_cibo
+
+
+def getPostMealFoodAdvice(
+    glucose_data: schemas.GlucoseData, 
+    meal_data: schemas.MealData, 
+    user_id: int, 
+    db
+) -> str:
+    # 1. Fetch user profile for customized medical thresholds
+    user_profile = db.execute(
+        text("SELECT * FROM profiles WHERE id = :u_id"),
+        {"u_id": user_id}
+    ).mappings().first()
+
+    if not user_profile:
+        raise HTTPException(status_code=404, detail="Profilo utente non trovato")
+        
+    current_glucose = float(glucose_data.sugar_value)
+    phase = glucose_data.phase
+
+    # Extract macronutrients from the entered meal
+    meal_carbs = float(meal_data.carbs_grams or 0.0)
+    meal_sugars = float(meal_data.sugars_grams or 0.0)
+    meal_fats = float(meal_data.fats_grams or 0.0)
+    meal_proteins = float(meal_data.proteins_grams or 0.0)
+    meal_fibers = float(meal_data.fibers_grams or 0.0)
+    glycemic_index = str(meal_data.glycemic_index or "").lower()
+
+    # Personalized thresholds (or standard clinical defaults)
+    hypo_threshold = user_profile.get('hypo_threshold', 70)
+    target_min = user_profile.get('target_min', 80)
+    target_max = user_profile.get('target_max', 140)
+
+    # 2. CROSS-REFERENCED LOGIC: GLUCOSE + MEAL NUTRIENTS
+    
+    # --- CASE 1: IMMEDIATE HYPOGLYCEMIA ---
+    if current_glucose <= hypo_threshold:
+        # If the user is trying to eat a complex meal, slowing down the glucose rise
+        if meal_carbs > 0 and (meal_fats > 5 or meal_proteins > 5):
+            return (
+                "⚠️ ATTENZIONE: Sei in IPOGLICEMIA! Questo pasto contiene troppi grassi o proteine che "
+                "rallenteranno l'assorbimento degli zuccheri.\n\n"
+                "COSA FARE ORA:\n"
+                "1. Ferma temporaneamente il pasto.\n"
+                "2. Prendi SUBITO 15g di zuccheri ultra-rapidi (es. 1/2 bicchiere di Coca-Cola normale, un succo di frutta o 3 bustine di zucchero sciolte in acqua).\n"
+                "3. Attendi 15 minutes, ricontrolla la glicemia e riprendi a mangiare solo quando sarai fuori pericolo."
+            )
+        else:
+            return (
+                "🔴 IPOGLICEMIA IMMEDIATA! Serve zucchero semplice IMMEDIATO.\n"
+                "Assumi circa 15g di carboidrati veloci (1 piccolo succo di frutta o 3 cucchiaini di zucchero in acqua).\n"
+                "⚠️ EVITA ORA: Cioccolato, merendine o biscotti (i grassi bloccano la risalita dello zucchero)."
+            )
+
+    # --- CASE 2: TRENDING LOW ---
+    elif hypo_threshold < current_glucose < target_min:
+        if meal_carbs > 0:
+            if glycemic_index == "fast" or glycemic_index == "veloce":
+                return (
+                    f"🟡 Glicemia tendente al basso ({current_glucose} mg/dL). Il pasto inserito ha un Indice Glicemico VELOCE.\n"
+                    "Va bene per far risalire subito il valore, ma monitora la glicemia tra 2 ore: c'è il rischio di un picco seguito da un nuovo rapido calo."
+                )
+            else:
+                return (
+                    f"🟢 Ottima scelta! La tua glicemia è tendente al basso ({current_glucose} mg/dL) e stai inserendo un pasto "
+                    f"con carboidrati bilanciati. Grassi ({meal_fats}g) and proteine ({meal_proteins}g) aiuteranno a mantenere la glicemia stabile nel tempo."
+                )
+        else:
+            return (
+                f"🟡 La glicemia è bassa ({current_glucose} mg/dL) e non stai introducendo carboidrati.\n"
+                "Ti consigliamo di aggiungere una piccola quota di carboidrati complessi (es. 1 pacchetto di cracker integrali o una fetta di pane) per stabilizzare il trend."
+            )
+
+    # --- CASE 3: IN TARGET (Blood sugar is fine) ---
+    elif target_min <= current_glucose <= target_max:
+        if meal_carbs > 0:
+            # Check for fibers on refined, high-GI meals
+            if (glycemic_index == "fast" or glycemic_index == "veloce") and meal_fibers < 3.0:
+                return (
+                    f"🟢 Sei perfettamente in target ({current_glucose} mg/dL), ma questo pasto ha un indice glicemico VELOCE ed è povero di fibre ({meal_fibers}g).\n"
+                    "⚠️ Rischio picco post-prandiale! Valuta con cura l'anticipo dell'insulina o, se puoi, aggiungi una porzione di verdura cruda (fibre) per rallentare l'assorbimento."
+                )
+            elif glycemic_index == "slow" or glycemic_index == "lento" or meal_fibers >= 4.0:
+                return (
+                    f"🟢 Valore perfetto ({current_glucose} mg/dL) e pasto eccellente! L'alto contenuto di fibre e l'indice glicemico lento garantiscono "
+                    "un assorbimento graduale senza picchi improvvisi. Procedi pure!"
+                )
+            else:
+                return f"🟢 Glicemia in target ({current_glucose} mg/dL). Puoi procedere con il tuo pasto standard bilanciato."
+        else:
+            return f"🟢 Tutto perfetto ({current_glucose} mg/dL). Non stai introducendo carboidrati, il valore resterà stabile."
+
+    # --- CASE 4: HYPERGLYCEMIA / HIGH VALUE ---
+    else:
+        if meal_carbs > 0:
+            return (
+                f"🚨 ATTENZIONE: La tua glicemia è ALTA ({current_glucose} mg/dL) e stai inserendo un pasto ricco di Carboidrati ({meal_carbs}g)!\n\n"
+                f"Consigli terapeutici:\n"
+                f"- Se decidi di mangiare comunque, è fondamentale calcolare accuratamente la dose di insulina includendo il tuo fattore di correzione (ISF).\n"
+                f"- Se possibile, riduci la quota di carboidrati, dando la priorità a proteine e verdure.\n"
+                f"- Bevi subito 1-2 grandi bicchieri d'acqua per aiutare i reni a smaltire il glucosio in eccesso."
+            )
+        else:
+            return (
+                f"🟠 Glicemia alta ({current_glucose} mg/dL). Hai scelto correttamente un pasto a ZERO o pochissimi carboidrati.\n"
+                "Ottimo per placare la fame senza peggiorare l'iperglicemia. Ricordati di idratarti molto bevendo acqua."
+            )
        

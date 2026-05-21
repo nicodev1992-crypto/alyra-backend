@@ -164,7 +164,7 @@ def insert_unified_log(
             db.commit()
             return {"status": "success",
                 "message": "Dati salvati correttamente",
-                "advice": "Pre pranzo!!"
+                "advice": brain.getFoodAdviceBasedOnGlucoseValue(glucose_data, glucose_data.user_id, db=db)
                 }
             
         # Salva il pasto solo se l'utente sta effettivamente mangiando qualcosa
@@ -199,7 +199,7 @@ def insert_unified_log(
         db.commit()
         return {"status": "success",
                 "message": "Dati salvati correttamente",
-                "food_advice": brain.getFoodAdviceBasedOnGlucoseValue(glucose_data, glucose_data.user_id, db=db)
+                "food_advice": brain.getPostMealFoodAdvice(glucose_data, meal_data, glucose_data.user_id, db=db)
                 }
 
     except HTTPException as http_ex:
