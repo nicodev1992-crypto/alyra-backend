@@ -119,7 +119,7 @@ def get_last_glucose(user_id: int, db=Depends(get_db)):
                 "sugar_value": result["sugar_value"],
                 "phase": result["phase"],
                 "recorded_at": result["recorded_at"].isoformat() if result.get("recorded_at") else None,
-                "food_advice": brain.getFoodAdviceBasedOnGlucoseValue(result, user_id=user_id, db=db)
+                "food_advice": brain.getFoodAdviceBasedOnGlucoseValue(result, user_id=user_id, db=db, useData=False)
             }
         return None
     except Exception as e:

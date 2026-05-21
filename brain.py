@@ -342,10 +342,7 @@ def getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf)
 
     return "Ottimo, sei nel tuo target!"
 
-def getFood(glucose_data, db):
-    return "CIAOOOO"
-
-def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db):
+def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db, useData):
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
         {"u_id": user_id}
@@ -354,9 +351,13 @@ def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db):
     if not user_profile:
         raise HTTPException(
             status_code=404, detail="Profilo utente non trovato")
-
-    glicemia_attuale = float(df_glucose['sugar_value'])
-    fase = df_glucose['phase']
+    
+    if(useData):
+        glicemia_attuale = float(df_glucose.sugar_value or 0.0)
+        fase = float(df_glucose.phase or 0.0)
+    else:
+        glicemia_attuale = float(df_glucose['sugar_value'])
+        fase = df_glucose['phase']
 
     # Soglie personalizzate (con valori di default medici standard)
     soglia_ipo = user_profile.get('hypo_threshold', 70)
