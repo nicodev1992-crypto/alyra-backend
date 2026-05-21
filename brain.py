@@ -354,7 +354,7 @@ def getFoodAdviceBasedOnGlucoseValue(df_glucose, user_id, db, useData):
     
     if(useData):
         glicemia_attuale = float(df_glucose.sugar_value or 0.0)
-        fase = float(df_glucose.phase or 0.0)
+        fase = df_glucose.phase or ""
     else:
         glicemia_attuale = float(df_glucose['sugar_value'])
         fase = df_glucose['phase']
