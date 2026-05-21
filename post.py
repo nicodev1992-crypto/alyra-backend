@@ -127,10 +127,11 @@ def insert_glucose_meal(glucose_data: schemas.GlucoseData, meal_data: schemas.Me
         print('Error')
 
 
-@router.post("/glucose_post_meal")
+@router.post("/glucose_meal")
 def insert_unified_log(
     glucose_data: schemas.GlucoseData,
     meal_data: schemas.MealData,
+    meal_phase : str,
     db=Depends(get_db)
 ):
     try:
@@ -147,6 +148,7 @@ def insert_unified_log(
             raise HTTPException(
                 status_code=404, detail="Profilo utente non trovato")
 
+        
         # 2. SALVATAGGIO GLICEMIA + INSULINA
         # Controlla se l'utente ha inserito una glicemia valida (es. maggiore di 0)
         if glucose_data.sugar_value > 0:
@@ -166,7 +168,13 @@ def insert_unified_log(
                 "ins_time": glucose_data.insulin_time
             })
 
-        # 3. SALVATAGGIO PASTO (Mancava completamente!)
+        if(meal_phase == "Pre"):
+            db.commit()
+            return {"status": "success",
+                "message": "Dati salvati correttamente",
+                "advice": "Pre pranzo!!"
+                }
+            
         # Salva il pasto solo se l'utente sta effettivamente mangiando qualcosa
         if meal_data.carbs_grams > 0:
             query_meal = text("""
@@ -199,7 +207,7 @@ def insert_unified_log(
         db.commit()
         return {"status": "success",
                 "message": "Dati salvati correttamente",
-                "advice": "Ottimo pranzetto!"
+                "advice": "Post pranzo!"
                 }
 
     except HTTPException as http_ex:
