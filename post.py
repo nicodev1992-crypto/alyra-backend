@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text  # Importa direttamente la libreria
+import brain
 from database import get_db
 from logger import logger
 import schemas
@@ -198,7 +199,7 @@ def insert_unified_log(
         db.commit()
         return {"status": "success",
                 "message": "Dati salvati correttamente",
-                "advice": "Post pranzo!"
+                "food_advice": brain.getFoodAdviceBasedOnGlucoseValue(glucose_data, glucose_data.user_id, db=db)
                 }
 
     except HTTPException as http_ex:
