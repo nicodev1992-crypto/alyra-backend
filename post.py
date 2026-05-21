@@ -140,6 +140,8 @@ def insert_unified_log(
             raise HTTPException(
                 status_code=404, detail="Profilo utente non trovato")
 
+        phase = str(meal_phase or "").lower()
+        print(phase)
         
         # 2. SALVATAGGIO GLICEMIA + INSULINA
         # Controlla se l'utente ha inserito una glicemia valida (es. maggiore di 0)
@@ -160,7 +162,7 @@ def insert_unified_log(
                 "ins_time": glucose_data.insulin_time
             })
 
-        if(meal_phase == "Pre"):
+        if "pre" in phase:
             db.commit()
             return {"status": "success",
                 "message": "Dati salvati correttamente",
