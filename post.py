@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text  # Importa direttamente la libreria
 from database import get_db
@@ -131,7 +131,7 @@ def insert_glucose_meal(glucose_data: schemas.GlucoseData, meal_data: schemas.Me
 def insert_unified_log(
     glucose_data: schemas.GlucoseData,
     meal_data: schemas.MealData,
-    meal_phase : str,
+    meal_phase: str = Body(...),
     db=Depends(get_db)
 ):
     try:
