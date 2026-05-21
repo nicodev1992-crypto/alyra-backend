@@ -119,6 +119,8 @@ def add_glucose(data: schemas.GlucoseData, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # MEAL
+
+
 @router.post("/glucose_meal")
 def insert_unified_log(
     glucose_data: schemas.GlucoseData,
@@ -142,7 +144,7 @@ def insert_unified_log(
 
         phase = str(meal_phase or "").lower()
         print(phase)
-        
+
         # 2. SALVATAGGIO GLICEMIA + INSULINA
         # Controlla se l'utente ha inserito una glicemia valida (es. maggiore di 0)
         if glucose_data.sugar_value > 0:
@@ -165,10 +167,11 @@ def insert_unified_log(
         if "pre" in phase:
             db.commit()
             return {"status": "success",
-                "message": "Dati salvati correttamente",
-                "advice": "PRE" #brain.getFoodAdviceBasedOnGlucoseValue(glucose_data, glucose_data.user_id, db=db)
-                }
-            
+                    "message": "Dati salvati correttamente",
+                    # brain.getFoodAdviceBasedOnGlucoseValue(glucose_data, glucose_data.user_id, db=db)
+                    "advice": "PRE"
+                    }
+
         # Salva il pasto solo se l'utente sta effettivamente mangiando qualcosa
         if meal_data.carbs_grams > 0:
             query_meal = text("""
@@ -197,12 +200,13 @@ def insert_unified_log(
                 "at": meal_data.consumed_at
             })
 
-        # Se tutto è andato a buon fine, fa il commit di entrambe le tabelle
-        db.commit()
-        return {"status": "success",
-                "message": "Dati salvati correttamente",
-                "food_advice": brain.getPostMealFoodAdvice(glucose_data, meal_data, glucose_data.user_id, db=db)
-                }
+        if "post" in phase:
+            # Se tutto è andato a buon fine, fa il commit di entrambe le tabelle
+            db.commit()
+            return {"status": "success",
+                    "message": "Dati salvati correttamente",
+                    "food_advice": brain.getPostMealFoodAdvice(glucose_data, meal_data, glucose_data.user_id, db=db)
+                    }
 
     except HTTPException as http_ex:
         # Se l'errore è il 404 del profilo, non serve fare rollback ma lo rilanciamo
