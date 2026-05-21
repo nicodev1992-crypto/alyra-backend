@@ -118,15 +118,6 @@ def add_glucose(data: schemas.GlucoseData, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # MEAL
-
-@router.post("/glucose_meal")
-def insert_glucose_meal(glucose_data: schemas.GlucoseData, meal_data: schemas.MealData, db=Depends(get_db)):
-    try:
-        print('Trying')
-    except:
-        print('Error')
-
-
 @router.post("/glucose_meal")
 def insert_unified_log(
     glucose_data: schemas.GlucoseData,
