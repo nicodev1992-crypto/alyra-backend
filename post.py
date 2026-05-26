@@ -11,7 +11,7 @@ router = APIRouter(prefix="/post")
 
 # -------------------------------------- USER REGISTER AND LOGIN
 @router.post("/register_user")
-def insert_new_profile(user: schemas.UserRegister, db=Depends(get_db)):
+def insert_new_profile(user: schemas.UserData, db=Depends(get_db)):
     logger.info(f"Inserimento profilo completo per: {user.full_name}")
 
     # Logica hypo_threshold esistente...

@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from datetime import datetime, timedelta, timezone
 import datetime
 import message_database
+import premealadvice
+import postmealadvice
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
@@ -441,26 +443,28 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
     if not user_profile:
         raise HTTPException(
             status_code=404, detail="Profilo utente non trovato")
-    
+
     glucose_value = float(df_glucose.sugar_value or 0.0)
 
     # Soglie personalizzate (con valori di default medici standard)
     ipo_threshold = user_profile.get('hypo_threshold', 70)
     target_min = user_profile.get('target_min', 80)
     target_max = user_profile.get('target_max', 140)
-    measurement_unit = user_id.get('measurement_unit', "mg/Dl")
+    measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
 
     # 3. Logica di raccomandazione del CIBO
     advice = ""
 
     if glucose_value <= ipo_threshold:
-        advice = f"Evita per ora {mealData.name}!"
-        advice = message_database.getAlarmLowGlucosemessage(
-            glucose_value, measurement_unit)
+        advice = premealadvice.getPreMealTooLowAlarmAdvice(
+            glucose_value, measurement_unit, mealData)
+
+    elif target_min < glucose_value < target_max:
+        advice = premealadvice.getPreMealNearIdealTargetAdvice(
+            glucose_value, user_profile, mealData)
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     elif glucose_value >= target_max:
-        advice = f"Evita per ora {mealData.name}!"
         advice = message_database.getAlarmHighGlucoseMessage(
             glucose_value, measurement_unit)
 

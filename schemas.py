@@ -20,7 +20,7 @@ class GlucoseData(BaseModel):
     insulin_time: datetime
 
 
-class UserRegister(BaseModel):
+class UserData(BaseModel):
     full_name: str
     email: str
     password: str
