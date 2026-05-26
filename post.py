@@ -168,10 +168,10 @@ def insert_unified_log(
             db.commit()
             return {"status": "success",
                     "message": "Dati salvati correttamente",
-                    "advice": brain.getFoodAdviceBasedOnGlucoseValue(glucose_data, u_id, db, True)
+                    "advice": brain.getPreFoodAdvice(glucose_data, u_id, db, meal_data)
                     }
 
-        # Salva il pasto solo se l'utente sta effettivamente mangiando qualcosa
+        # Salva il pasto solo se l'utente ha mangiato
         if meal_data.carbs_grams > 0:
             query_meal = text("""
                 INSERT INTO meals (

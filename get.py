@@ -102,7 +102,7 @@ def get_id_utente_by_name_and_email(full_name: str, email: Optional[str] = None,
 
 
 @router.get("/last_glucose")
-def get_last_glucose(user_id: int, db=Depends(get_db)):
+def get_last_glucose_food_advice(user_id: int, db=Depends(get_db)):
     query = text("""
         SELECT g.sugar_value, g.phase, g.recorded_at
         FROM glucose g
@@ -119,7 +119,7 @@ def get_last_glucose(user_id: int, db=Depends(get_db)):
                 "sugar_value": result["sugar_value"],
                 "phase": result["phase"],
                 "recorded_at": result["recorded_at"].isoformat() if result.get("recorded_at") else None,
-                "food_advice": brain.getFoodAdviceBasedOnGlucoseValue(result, user_id=user_id, db=db, useData=False)
+                "food_advice": brain.getLastGlucoseAdvice(result, user_id=user_id, db=db)
             }
         return None
     except Exception as e:
