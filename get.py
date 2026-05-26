@@ -99,8 +99,6 @@ def get_id_utente_by_name_and_email(full_name: str, email: Optional[str] = None,
         return {"error": "Errore database"}
 
 # GET GLUCOSE
-
-
 @router.get("/last_glucose")
 def get_last_glucose_food_advice(user_id: int, db=Depends(get_db)):
     query = text("""
@@ -113,12 +111,22 @@ def get_last_glucose_food_advice(user_id: int, db=Depends(get_db)):
     try:
         result = db.execute(query, {"u_id": user_id}).mappings().first()
         if result:
-            # Creiamo un dizionario pulito
-            # .isoformat() trasforma la data in una stringa che Flutter può leggere
+            # 1. Recuperiamo la data dal database
+            dt = result.get("recorded_at")
+            recorded_at_str = None
+
+            if dt:
+                # 2. Se la data non ha un fuso orario, gli diciamo esplicitamente che è UTC
+                if dt.tzinfo is None:
+                    from datetime import timezone
+                    dt = dt.replace(tzinfo=timezone.utc)
+                # 3. .isoformat() ora genererà una stringa perfetta che finisce con '+00:00' o 'Z'
+                recorded_at_str = dt.isoformat()
+
             return {
                 "sugar_value": result["sugar_value"],
                 "phase": result["phase"],
-                "recorded_at": result["recorded_at"].isoformat() if result.get("recorded_at") else None,
+                "recorded_at": recorded_at_str,  # <--- Ora questa stringa è corretta per Flutter
                 "food_advice": brain.getLastGlucoseAdvice(result, user_id=user_id, db=db)
             }
         return None
