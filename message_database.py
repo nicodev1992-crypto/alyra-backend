@@ -1,17 +1,17 @@
 low_glucose_no_meal_data = (
-    "🔴 **IPOGLICEMIA IMMEDIATA**\n\n"
+    "🔴 IPOGLICEMIA IMMEDIATA\n\n"
     "Serve zucchero semplice IMMEDIATO (circa 15g di carboidrati veloci).\n\n"
     "Alimenti consigliati:\n"
     " - 1/2 bicchiere di Coca-Cola o aranciata (NON zero/diet)\n"
     " - 1 piccolo succo di frutta (circa 100-150ml)\n"
     " - 3 cucchiaini o bustine di zucchero sciolti in acqua\n"
     " - 4 compresse di glucosio/destrosio\n\n"
-    "⚠️ **EVITA in questo momento**: Cioccolato, merendine o biscotti (i grassi rallentano la risalita dello zucchero)."
+    "⚠️ EVITA in questo momento: Cioccolato, merendine o biscotti (i grassi rallentano la risalita dello zucchero)."
 )
 
 # Cambiato il nome per non sovrascrivere la variabile sopra
 warning_low_glucose_no_meal_data = (
-    "🟡 **GLICEMIA TENDENTE AL BASSO**\n\n"
+    "🟡 GLICEMIA TENDENTE AL BASSO\n\n"
     "La glicemia è bassa ma non ancora in emergenza. Serve uno spuntino con carboidrati complessi "
     "abbinati a una piccola quota di proteine o grassi per mantenere il livello stabile nel tempo.\n\n"
     "Alimenti consigliati:\n"
@@ -21,7 +21,7 @@ warning_low_glucose_no_meal_data = (
 )
 
 perfect_glucose_no_meal_data = (
-    "🟢 **VALORE IN TARGET**\n\n"
+    "🟢 VALORE IN TARGET\n\n"
     "Alimenti consigliati:\n"
     " - Un piatto unico con carboidrati complessi a basso indice glicemico (pasta/riso integrale, farro, quinoa)\n"
     " - Una buona porzione di verdure (fibre) e una fonte proteica (pesce, pollo, legumi)."
@@ -30,7 +30,7 @@ perfect_glucose_no_meal_data = (
 
 def getAlarmHighGlucoseMessage(glucose_value, measurement_unit):
     return (
-        f"🟠 **IPERGLICEMIA / VALORE ALTO**\n\n"
+        f"🟠 IPERGLICEMIA / VALORE ALTO\n\n"
         f"Il valore è alto ({glucose_value} {measurement_unit}). Al momento è fondamentale evitare carboidrati e zuccheri.\n\n"
         f"Cosa fare/mangiare:\n"
         f" - Prima di tutto: Bevi 1 o 2 grandi bicchieri d'acqua per aiutare i reni a smaltire il glucosio.\n"
@@ -45,7 +45,7 @@ def getAlarmHighGlucoseMessage(glucose_value, measurement_unit):
 def getAlarmLowGlucoseMessage(glucose_value, measurement_unit):
     # Corretto anche il nome della funzione (M maiuscola su Message per consistenza)
     return (
-        f"🔴 **IPOGLICEMIA IMMEDIATA**\n\n"
+        f"🔴 IPOGLICEMIA IMMEDIATA\n\n"
         f"Il valore è troppo basso! ({glucose_value} {measurement_unit}).\n"
         f"Serve zucchero semplice IMMEDIATO (circa 15g di carboidrati veloci).\n\n"
         f"Alimenti consigliati:\n"
@@ -53,5 +53,5 @@ def getAlarmLowGlucoseMessage(glucose_value, measurement_unit):
         f" - 1 piccolo succo di frutta (circa 100-150ml)\n"
         f" - 3 cucchiaini o bustine di zucchero sciolti in acqua\n"
         f" - 4 compresse di glucosio/destrosio\n\n"
-        f"⚠️ **EVITA in questo momento**: Cioccolato, merendine o biscotti (i grassi rallentano la risalita dello zucchero)."
+        f"⚠️ EVITA in questo momento: Cioccolato, merendine o biscotti (i grassi rallentano la risalita dello zucchero)."
     )
