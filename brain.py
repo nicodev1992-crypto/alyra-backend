@@ -368,7 +368,7 @@ def getLastGlucoseAdvice(df_glucose, user_id, db):  # salvo consiglio
 
     # CASO 1: IPOGLICEMIA (Servono zuccheri ultra-rapidi, NO grassi o proteine che rallentano l'assorbimento)
     if glucose_value <= ipo_threshold:
-        advice = message_database.getAlarmLowGlucosemessage(
+        advice = message_database.getAlarmLowGlucoseMessage(
             glucose_value, measurement_unit)
 
     # CASO 2: TENDENZA AL BASSO (Glicemia calante, serve stabilità)
