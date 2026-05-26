@@ -360,7 +360,7 @@ def getLastGlucoseAdvice(df_glucose, user_id, db):  # salvo consiglio
     ipo_threshold = user_profile.get('hypo_threshold', 70)
     target_min = user_profile.get('target_min', 80)
     target_max = user_profile.get('target_max', 140)
-    measurement_unit = user_id.get('measurement_unit', "mg/Dl")
+    measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
 
     advice = ""
 
