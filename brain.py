@@ -54,13 +54,23 @@ def add_glucose_and_get_advice(data: schemas.GlucoseData, db=Depends(get_db)):
 
     advice = getGlucoseAdvice(data, user_id=data.user_id, db=db)
 
+    queryAdvice = text("""
+        INSERT INTO messages (created_at,user_id, last_glucose_advice,last_meal_advice)
+        VALUES (:time,:u_id, :l_g_advice, :l_m_advice)
+    """)
+    db.execute(queryAdvice, {
+        "created_at": datetime.now(),
+        "u_id": data.user_id,
+        "l_g_advice": advice,
+        "l_m_advice": None
+    })
+    db.commit()
+
     return {
         "status": "Success",
         "advice": advice,
         "iob": current_iob  # Restituiamo anche l'IOB per la unità di insulina se serve
     }
-
-# Funzione di supporto (sempre in brain.py)
 
 
 def get_user_profile(user_id, db):
@@ -468,11 +478,11 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
     elif target_min < glucose_value < ideal_target:
         advice = premealadvice.getPreMealUnderTargetIdealAdvice(
             glucose_value, user_profile, mealData)
-        
+
     elif glucose_value == ideal_target:
         advice = premealadvice.getPreMealExactTargetIdealAdvice(
             glucose_value, user_profile, mealData)
-        
+
     elif ideal_target < glucose_value < target_max:
         advice = premealadvice.getPreMealOverTargetIdealAdvice(
             glucose_value, user_profile, mealData)

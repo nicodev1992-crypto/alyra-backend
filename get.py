@@ -100,7 +100,7 @@ def get_id_utente_by_name_and_email(full_name: str, email: Optional[str] = None,
 
 # GET GLUCOSE
 @router.get("/last_glucose")
-def get_last_glucose_food_advice(user_id: int, db=Depends(get_db)):
+def get_last_glucose_and_advice(user_id: int, db=Depends(get_db)):
     query = text("""
         SELECT g.sugar_value, g.phase, g.recorded_at
         FROM glucose g
@@ -127,12 +127,42 @@ def get_last_glucose_food_advice(user_id: int, db=Depends(get_db)):
                 "sugar_value": result["sugar_value"],
                 "phase": result["phase"],
                 "recorded_at": recorded_at_str,  # <--- Ora questa stringa è corretta per Flutter
-                "food_advice": brain.getGlucoseAdvice(result, user_id=user_id, db=db)
+                "food_advice": get_last_glucose_advice(user_id=user_id, db=db)
             }
         return None
     except Exception as e:
         logger.error(f"Errore: {e}")
         return None
+    
+    
+def get_last_glucose_advice(user_id: int, db=Depends(get_db)):
+    query = text("""
+        SELECT m.last_glucose_advice,
+        FROM messages m
+        WHERE m.user_id = :u_id
+        ORDER BY m.created_at DESC
+        LIMIT 1
+    """)
+    try:
+        result = db.execute(query, {"u_id": user_id}).mappings().first()
+        if result:
+            # 1. Recuperiamo la data dal database
+            dt = result.get("created_at")
+
+            if dt:
+                # 2. Se la data non ha un fuso orario, gli diciamo esplicitamente che è UTC
+                if dt.tzinfo is None:
+                    from datetime import timezone
+                    dt = dt.replace(tzinfo=timezone.utc)
+
+            return {
+                "glucose_advice": result["last_glucose_advice"],
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Errore: {e}")
+        return None
+
 
 # MEAL
 
