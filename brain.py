@@ -346,7 +346,7 @@ def getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf)
     return "Ottimo, sei nel tuo target!"
 
 
-def getLastGlucoseAdvice(df_glucose, user_id, db):  # salvo consiglio
+def getLastGlucoseAdvice(glucoseData, user_id, db):  # salvo consiglio
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
         {"u_id": user_id}
@@ -356,36 +356,46 @@ def getLastGlucoseAdvice(df_glucose, user_id, db):  # salvo consiglio
         raise HTTPException(
             status_code=404, detail="Profilo utente non trovato")
 
-    glucose_value = float(df_glucose['sugar_value'])
+    fase = glucoseData.get('phase', 'Check')
+    glucose_value = float(glucoseData['sugar_value'])
 
     # Soglie personalizzate (con valori di default medici standard)
     ipo_threshold = user_profile.get('hypo_threshold', 70)
     target_min = user_profile.get('target_min', 80)
     target_max = user_profile.get('target_max', 140)
     measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
+    isf = user_profile.get('isf', 0)
+    insulin_duration = user_profile.get('insulin_duration', 0)
+    measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
+    ideal_target = user_profile.get('target_ideal', 110)
 
     advice = ""
 
     # CASO 1: IPOGLICEMIA (Servono zuccheri ultra-rapidi, NO grassi o proteine che rallentano l'assorbimento)
     if glucose_value <= ipo_threshold:
-        advice = message_database.getAlarmLowGlucoseMessage(
-            glucose_value, measurement_unit)
+        advice = message_database.getAlarmLowGlucoseMessage(fase,
+                                                            glucose_value, measurement_unit)
 
     # CASO 2: TENDENZA AL BASSO (Glicemia calante, serve stabilità)
-    elif ipo_threshold < glucose_value < target_min:
-        advice = message_database.low_glucose_no_meal_data
+    elif target_min < glucose_value < ideal_target:
+        advice = message_database.getWarningLowGlucoseMessage(
+            fase, glucose_value, measurement_unit, insulin_duration)
 
-    # CASO 3: IN TARGET (La glicemia va bene)
-    elif target_min <= glucose_value <= target_max:
-        advice = message_database.perfect_glucose_no_meal_data
+    elif glucose_value == ideal_target:
+        advice = message_database.getPerfectGlucoseMessage(
+            fase, measurement_unit, insulin_duration, ideal_target)
+
+    elif ideal_target < glucose_value <= target_max:
+        advice = message_database.getWarningHighGlucoseMessage(
+            fase, glucose_value, measurement_unit, isf, insulin_duration, ideal_target)
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     else:
-        advice = message_database.getAlarmHighGlucoseMessage(
-            glucose_value, measurement_unit)
+        advice = message_database.getAlarmHighGlucoseMessage(fase,
+                                                             glucose_value, measurement_unit, isf, insulin_duration, ideal_target)
 
     # Output finale pulito
-    return advice
+    return advice + message_database.LEGAL_DISCLAIMER
 
 
 def getPostMealFoodAdvice(glucose_data, meal_data, user_id: int, db) -> str:
@@ -465,8 +475,8 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     elif glucose_value >= target_max:
-        advice = message_database.getAlarmHighGlucoseMessage(
-            glucose_value, measurement_unit)
+        advice = premealadvice.getPreMealGlucoseTooHigh(
+            glucose_value, measurement_unit, mealData)
 
     # Output finale pulito
     return advice

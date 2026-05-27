@@ -1,10 +1,12 @@
+import message_database
+
 def getPreMealNearIdealTargetAdvice(glicemia_attuale, user_profile, mealData):
     """
     Orchestratore principale per la glicemia IN TARGET.
     Smista la logica su due funzioni interne dedicate a seconda che il valore
     sia SOPRA o SOTTO il target ideale dell'utente.
     """
-    
+
     # 1. Estrazione e pulizia dati del cibo (mealData)
     nome_pasto = mealData.name or 'Pasto'
     carbo = float(mealData.carbs_grams or 0.0)
@@ -28,15 +30,16 @@ def getPreMealNearIdealTargetAdvice(glicemia_attuale, user_profile, mealData):
     # 🟢 METODO INTERNO 1: FASCIA ALTA (Ottimizzazione e Micro-Correzione)
     # -------------------------------------------------------------------------
     def getOverIdealTargetAdvice():
-        unita_micro_correzione = round((glicemia_attuale - target_ideal) / isf, 1) if isf > 0 else 0.0
+        unita_micro_correzione = round(
+            (glicemia_attuale - target_ideal) / isf, 1) if isf > 0 else 0.0
         dose_totale_stimata = round(unita_pasto + unita_micro_correzione, 1)
-        
+
         testo = (
             f"🟢 GLICEMIA IN TARGET - FASCIA ALTA ({glicemia_attuale}\u00A0mg/dL)\n"
             f"Il tuo valore è buono, ma si trova sopra il tuo obiettivo ideale di {target_ideal}\u00A0mg/dL. "
             f"Applichiamo una strategia di micro-ottimizzazione.\n\n"
         )
-        
+
         # Motore di ottimizzazione porzioni (attivo solo in fascia alta)
         avviso_ottimizzazione = ""
         if carbo > 100.0:
@@ -50,10 +53,11 @@ def getPreMealNearIdealTargetAdvice(glicemia_attuale, user_profile, mealData):
             )
             if peso_alimento > 0:
                 densita_carbo = carbo / peso_alimento
-                grammi_da_togliere_bilancia = round(carbo_da_ridurre / densita_carbo)
+                grammi_da_togliere_bilancia = round(
+                    carbo_da_ridurre / densita_carbo)
                 avviso_ottimizzazione += f"👉 In pratica: togli circa {grammi_da_togliere_bilancia}\u00A0g di prodotto dalla porzione sulla bilancia.\n"
             avviso_ottimizzazione += "\n"
-            
+
         elif carbo > 20.0 and (zuccheri / carbo) > 0.5:
             zuccheri_eccessivi = round(zuccheri - (carbo * 0.25), 1)
             avviso_ottimizzazione += (
@@ -67,8 +71,10 @@ def getPreMealNearIdealTargetAdvice(glicemia_attuale, user_profile, mealData):
         if avviso_ottimizzazione:
             testo += avviso_ottimizzazione
             if carbo > 100.0:
-                unita_pasto_ottimizzato = round(75.0 / ic_ratio, 1) if ic_ratio > 0 else 0.0
-                dose_totale_ottimizzata = round(unita_pasto_ottimizzato + unita_micro_correzione, 1)
+                unita_pasto_ottimizzato = round(
+                    75.0 / ic_ratio, 1) if ic_ratio > 0 else 0.0
+                dose_totale_ottimizzata = round(
+                    unita_pasto_ottimizzato + unita_micro_correzione, 1)
                 testo += (
                     f"📊 SCELTA DOSAGGIO INSULINA (Include Micro-Correzione di +{unita_micro_correzione}\u00A0U):\n"
                     f"  · SE SEGUI IL CONSIGLIO (Pasto ridotto a 75g carbo): Esegui {dose_totale_ottimizzata}\u00A0U totali.\n"
@@ -153,21 +159,29 @@ def getPreMealNearIdealTargetAdvice(glicemia_attuale, user_profile, mealData):
     if glicemia_attuale >= target_ideal:
         if indice_glicemico == "Veloce":
             consiglio += "  ⚡ Indice Glicemico Veloce: Anticipa il bolo di 10-15 minuti rispetto al primo boccone per frenare la salita.\n"
+        elif indice_glicemico == "Medio":
+            consiglio += "  ⚖️ Indice Glicemico Medio: Gestione standard. Puoi fare il bolo circa 5-10 minuti prima del pasto o all'inizio, monitorando l'andamento.\n"
         elif indice_glicemico == "Lento":
             consiglio += "  🐢 Indice Glicemico Lento: Assorbimento prolungato. Fai l'insulina a ridosso del pasto per non scendere all'inizio.\n"
 
-    # Controllo Grassi/Proteine per l'effetto Pizza (Rialzo tardivo gastrico)
-    if grassi >= 20.0 or proteine >= 25.0:
+    # 2. CONTROLLO GRASSI/PROTEINE (Protezione contro i None)
+    # Usiamo "or 0.0": se il valore è None, Python lo trasforma al volo in 0.0 per fare il calcolo in sicurezza
+    val_grassi = grassi if grassi is not None else 0.0
+    val_proteine = proteine if proteine is not None else 0.0
+
+    if val_grassi >= 20.0 or val_proteine >= 25.0:
         consiglio += (
-            f"  🧀 Effetto tardivo rilevato (Grassi: {grassi}g, Proteine: {proteine}g).\n"
+            f"  🧀 Effetto tardivo rilevato (Grassi: {val_grassi}g, Proteine: {val_proteine}g).\n"
             f"    Questo blocco rallenta lo svuotamento gastrico. La glicemia rimarrà stabile/ottima nelle prime 2 ore, "
             f"ma potrebbe salire sensibilmente dopo. Monitora l'andamento nelle prossime {insulin_duration} ore "
             f"(durata della tua insulina attiva) e valuta con il medico l'uso di un bolo d'insulina frazionato/prolungato.\n"
         )
 
-    # Controllo Fibre protettive
-    if fibre >= 5.0:
-        consiglio += f"  🥗 Ottimo l'apporto di fibre ({fibre}g): agiscono da scudo naturale rallentando e spalmando l'assorbimento degli zuccheri.\n"
+    # 3. CONTROLLO FIBRE (Protezione contro i None)
+    val_fibre = fibre if fibre is not None else 0.0
+
+    if val_fibre >= 5.0:
+        consiglio += f"  🥗 Ottimo l'apporto di fibre ({val_fibre}g): agiscono da scudo naturale rallentando e spalmando l'assorbimento degli zuccheri.\n"
 
     return consiglio
 
@@ -183,7 +197,7 @@ def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData):
     carbo = float(mealData.carbs_grams or 0.0)
     grassi = float(mealData.fats_grams or 0.0)
     proteine = float(mealData.proteins_grams or 0.0)
-    
+
     # 2. Estrazione parametri del profilo utente
     soglia_ipo = int(user_profile.get('hypo_threshold', 70))
     insulin_duration = user_profile.get('insulin_duration', 4)
@@ -212,15 +226,7 @@ def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData):
     )
 
     # 5. Protocollo di sicurezza e attivazione soccorsi
-    consiglio += (
-        "🚑 QUANDO CHIAMARE IL 118 / SOCCORSI:\n"
-        "  · Se avverti forte confusione mentale, sonnolenza estrema o non ti senti in grado di deglutire in sicurezza, "
-        "NON assumere liquidi o cibo e fatti aiutare da qualcuno a CHIAMARE IMMEDIATAMENTE IL 118.\n"
-        "  · Se dopo aver preso gli zuccheri e aver atteso 15 minuti ripeti la procedura di correzione per la seconda volta, "
-        "ma la glicemia continua a scendere o rimane pericolosamente bassa, CHIAMA IL 118.\n"
-        "  · Avvisa chi ti sta vicino: se dovessi perdere conoscenza, devono chiamare subito i soccorsi e "
-        "NON devono darti nulla da bere o da mangiare (va somministrato il Glucagone se disponibile).\n\n"
-    )
+    consiglio += message_database.CALL_AMBULANCE_ADVICE
 
     # 6. Analisi chimico-strutturale del pasto bloccato nel form
     if grassi >= 15.0 or proteine >= 20.0:
@@ -276,10 +282,10 @@ def getPreMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData):
     # Calcolo di quante unità servono solo per correggere l'iperglicemia attuale
     punti_da_scendere = glicemia_attuale - target_max
     unita_correzione = round(punti_da_scendere / isf, 1) if isf > 0 else 0.0
-    
+
     # Calcolo di quante unità servono per coprire i carboidrati inseriti
     unita_pasto = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
-    
+
     # Somma totale terapeutica
     dose_totale_raccomandata = round(unita_pasto + unita_correzione, 1)
 
@@ -318,25 +324,27 @@ def getPreMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData):
     # 🧠 MOTORE DI OTTIMIZZAZIONE DEL CIBO ("Ehi, ti consiglio meno...")
     # -------------------------------------------------------------------------
     avviso_cibo = ""
-    
+
     # Se l'utente è già alto e ha scelto un pasto molto ricco di carboidrati
     if carbo > 55.0:
         carbo_ideali_iper = 40.0  # Riduciamo il target di carbo tollerati visto che siamo alti
         carbo_da_togliere = round(carbo - carbo_ideali_iper, 1)
-        
+
         avviso_cibo += (
             f"💡 OTTIMIZZAZIONE DELLA PORZIONE SUL PIATTO '{nome_pasto}':\n"
             f"Essendo già in iperglicemia, introdurre {carbo}\u00A0g di carboidrati renderà la discesa molto lenta e faticosa.\n"
             f"👉 Ti consiglio di alleggerire questo pasto togliendo circa -{carbo_da_togliere}\u00A0g di carboidrati.\n"
         )
-        
+
         # Se abbiamo il peso sulla bilancia, convertiamo i carbo in grammi reali di cibo
         if peso_alimento > 0:
-            grammi_da_togliere_bilancia = round(carbo_da_togliere / (carbo / peso_alimento))
+            grammi_da_togliere_bilancia = round(
+                carbo_da_togliere / (carbo / peso_alimento))
             avviso_cibo += f"👉 Sulla bilancia: togli circa {grammi_da_togliere_bilancia}\u00A0g di cibo dalla porzione.\n"
-            
+
         # Calcolo del bolo alternativo se l'utente ascolta l'app
-        unita_pasto_ridotto = round(carbo_ideali_iper / ic_ratio, 1) if ic_ratio > 0 else 0.0
+        unita_pasto_ridotto = round(
+            carbo_ideali_iper / ic_ratio, 1) if ic_ratio > 0 else 0.0
         dose_totale_ridotta = round(unita_pasto_ridotto + unita_correzione, 1)
         avviso_cibo += f"📉 Se riduci il piatto, la nuova dose totale calcolata sarà di soli: {dose_totale_ridotta}\u00A0U.\n\n"
 
