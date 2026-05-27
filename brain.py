@@ -361,7 +361,7 @@ def getGlucoseAdvice(glucoseData, user_id, db):  # salvo consiglio
         raise HTTPException(
             status_code=404, detail="Profilo utente non trovato")
 
-    fase = glucoseData.get('phase', 'Check')
+    fase = getattr(glucoseData, 'phase', 'Check') or 'Check'
     glucose_value = float(glucoseData['sugar_value'])
 
     # Soglie personalizzate (con valori di default medici standard)
