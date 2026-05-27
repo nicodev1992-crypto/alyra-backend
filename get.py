@@ -137,7 +137,7 @@ def get_last_glucose_and_advice(user_id: int, db=Depends(get_db)):
     
 def get_last_glucose_advice(user_id: int, db=Depends(get_db)):
     query = text("""
-        SELECT m.last_glucose_advice,
+        SELECT m.last_glucose_advice
         FROM messages m
         WHERE m.user_id = :u_id
         ORDER BY m.created_at DESC
