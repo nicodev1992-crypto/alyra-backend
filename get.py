@@ -127,7 +127,7 @@ def get_last_glucose_food_advice(user_id: int, db=Depends(get_db)):
                 "sugar_value": result["sugar_value"],
                 "phase": result["phase"],
                 "recorded_at": recorded_at_str,  # <--- Ora questa stringa è corretta per Flutter
-                "food_advice": brain.getLastGlucoseAdvice(result, user_id=user_id, db=db)
+                "food_advice": brain.getGlucoseAdvice(result, user_id=user_id, db=db)
             }
         return None
     except Exception as e:

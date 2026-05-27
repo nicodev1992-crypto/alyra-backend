@@ -52,12 +52,7 @@ def add_glucose_and_get_advice(data: schemas.GlucoseData, db=Depends(get_db)):
         user_profile['insulin_duration']
     )
 
-    advice = get_smart_advice(
-        data.sugar_value,
-        data.phase,
-        user_profile,
-        current_iob
-    )
+    advice = getGlucoseAdvice(data, user_id=data.user_id, db=db)
 
     return {
         "status": "Success",
@@ -346,7 +341,7 @@ def getAdviceCheckForInsulinDipendent(sugar, target_max, iob, target_ideal, isf)
     return "Ottimo, sei nel tuo target!"
 
 
-def getLastGlucoseAdvice(glucoseData, user_id, db):  # salvo consiglio
+def getGlucoseAdvice(glucoseData, user_id, db):  # salvo consiglio
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
         {"u_id": user_id}
