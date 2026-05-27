@@ -145,27 +145,13 @@ def get_last_glucose_advice(user_id: int, db=Depends(get_db)):
     """)
     try:
         result = db.execute(query, {"u_id": user_id}).mappings().first()
-        if result:
-            # 1. Recuperiamo la data dal database
-            dt = result.get("created_at")
-
-            if dt:
-                # 2. Se la data non ha un fuso orario, gli diciamo esplicitamente che è UTC
-                if dt.tzinfo is None:
-                    from datetime import timezone
-                    dt = dt.replace(tzinfo=timezone.utc)
-
-            return {
-                "glucose_advice": result["last_glucose_advice"],
-            }
+        if result and result["last_glucose_advice"]:
+            # Ritorna direttamente la stringa pulita
+            return result["last_glucose_advice"]
         return None
     except Exception as e:
         logger.error(f"Errore: {e}")
         return None
-
-
-# MEAL
-
 
 @router.get("/last_meal")  # USATA IN MEALSERVICE
 def get_last_meal(user_id: int, db=Depends(get_db)):
