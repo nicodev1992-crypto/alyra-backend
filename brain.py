@@ -460,6 +460,7 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
     ipo_threshold = user_profile.get('hypo_threshold', 70)
     target_min = user_profile.get('target_min', 80)
     target_max = user_profile.get('target_max', 140)
+    ideal_target = user_profile.get('target_ideal', 120)
     measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
 
     # 3. Logica di raccomandazione del CIBO
@@ -469,8 +470,16 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
         advice = premealadvice.getPreMealTooLowAlarmAdvice(
             glucose_value, measurement_unit, mealData)
 
-    elif target_min < glucose_value < target_max:
-        advice = premealadvice.getPreMealNearIdealTargetAdvice(
+    elif target_min < glucose_value < ideal_target:
+        advice = premealadvice.getPreMealUnderTargetIdealAdvice(
+            glucose_value, user_profile, mealData)
+        
+    elif glucose_value == ideal_target:
+        advice = premealadvice.getPreMealExactTargetIdealAdvice(
+            glucose_value, user_profile, mealData)
+        
+    elif ideal_target < glucose_value < target_max:
+        advice = premealadvice.getPreMealOverTargetIdealAdvice(
             glucose_value, user_profile, mealData)
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
