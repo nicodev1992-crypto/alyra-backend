@@ -1,6 +1,4 @@
 from datetime import datetime, timezone
-from datetime import datetime, timedelta, timezone
-import datetime
 import message_database
 import premealadvice
 import postmealadvice
