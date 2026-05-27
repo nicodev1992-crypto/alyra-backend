@@ -287,8 +287,8 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, insul
 
 # Questo trafiletto legale deve essere appeso alla fine di OGNI consiglio restituito dall'app
 LEGAL_DISCLAIMER = (
-    "\n\n---\n"
-    "⚠️ **NOTA LEGALE / DISCLAIMER MEDICINE**\n"
+    "\n"
+    "⚠️ NOTA LEGALE\n"
     "I consigli e i calcoli forniti da questa applicazione hanno uno scopo puramente informativo "
     "e simulativo basato sui parametri inseriti. Non costituiscono in alcun modo una prescrizione, "
     "una diagnosi o un parere medico. Qualsiasi decisione terapeutica (inclusa la somministrazione di insulina) "
@@ -298,7 +298,7 @@ LEGAL_DISCLAIMER = (
 
 
 CALL_AMBULANCE_ADVICE = (
-    "🚑 QUANDO CHIAMARE IL 118 / SOCCORSI:\n"
+    "\n🚑 QUANDO CHIAMARE IL 118 / SOCCORSI:\n"
     "  · Se avverti forte confusione mentale, sonnolenza estrema o non ti senti in grado di deglutire in sicurezza, "
     "NON assumere liquidi o cibo e fatti aiutare da qualcuno a CHIAMARE IMMEDIATAMENTE IL 118.\n"
     "  · Se dopo aver preso gli zuccheri e aver atteso 15 minuti ripeti la procedura di correzione per la seconda volta, "

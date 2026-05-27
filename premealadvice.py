@@ -520,3 +520,52 @@ def getPreMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData):
     )
 
     return consiglio
+
+
+from datetime import datetime, timezone
+
+def calcola_iob_istantanea(insulin_units: float, insulin_time_raw, insulin_duration: float) -> float:
+    """
+    Calcola l'Insulina Attiva (IOB) in tempo reale basandosi su unità,
+    orario dell'iniezione e durata dell'insulina dell'utente.
+    """
+    if not insulin_units or insulin_units <= 0 or not insulin_time_raw:
+        return 0.0
+        
+    if not insulin_duration or insulin_duration <= 0:
+        return 0.0
+
+    # 1. Convertiamo l'orario in un oggetto datetime (se arriva come stringa)
+    # Se insulin_time_raw è già un datetime, saltiamo questo step
+    if isinstance(insulin_time_raw, str):
+        # Gestisce il formato ISO standard che arriva da Flutter (es. 2026-05-27T15:04:13Z)
+        # Rimuoviamo la 'Z' finale o i millisecondi se necessario, o usiamo fromisoformat
+        try:
+            # Rimpiazza la Z con +00:00 per renderlo leggibile da Python
+            orario_pulito = insulin_time_raw.replace('Z', '+00:00')
+            ora_iniezione = datetime.fromisoformat(orario_pulito)
+        except Exception:
+            # Fallback se il formato è leggermente diverso
+            return 0.0
+    else:
+        ora_iniezione = insulin_time_raw
+
+    # 2. Rendiamo tutto omogeneo in UTC per non sballare con i fusi orari
+    if ora_iniezione.tzinfo is None:
+        ora_iniezione = ora_iniezione.replace(tzinfo=timezone.utc)
+        
+    ora_attuale = datetime.now(timezone.utc)
+
+    # 3. Calcolo del tempo passato
+    differenza_tempo = ora_attuale - ora_iniezione
+    ore_trascorse = differenza_tempo.total_seconds() / 3600.0
+
+    # Se il tempo trascorso è negativo (orario nel futuro per errore) o ha superato la durata, l'IOB è zero
+    if ore_trascorse <= 0 or ore_trascorse >= insulin_duration:
+        return 0.0
+
+    # 4. Formula lineare di decadimento dell'insulina attiva
+    percentuale_residua = 1.0 - (ore_trascorse / insulin_duration)
+    iob = insulin_units * percentuale_residua
+
+    return round(iob, 1)
