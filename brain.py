@@ -59,7 +59,7 @@ def add_glucose_and_get_advice(data: schemas.GlucoseData, db=Depends(get_db)):
         VALUES (:time,:u_id, :l_g_advice, :l_m_advice)
     """)
     db.execute(queryAdvice, {
-        "created_at": datetime.now(),
+        "created_at": datetime.now(timezone.utc),
         "u_id": data.user_id,
         "l_g_advice": advice,
         "l_m_advice": None
