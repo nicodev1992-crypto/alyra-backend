@@ -50,7 +50,7 @@ def add_glucose_and_get_advice(data: schemas.GlucoseData, db=Depends(get_db)):
         user_profile['insulin_duration']
     )
 
-    advice = getGlucoseAdvice(data, user_id=data.user_id, db=db)
+    advice = getGlucoseAdvice(current_iob, data, user_id=data.user_id, db=db)
 
     queryAdvice = text("""
         INSERT INTO messages (created_at,user_id, last_glucose_advice,last_meal_advice)

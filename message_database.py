@@ -207,7 +207,6 @@ def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, ins
         punti_da_scendere = float(glucose_value) - float(target_ideal)
         if punti_da_scendere > 0 and float(isf) > 0:
             unita_correzione_teorica = punti_da_scendere / float(isf)
-            # La correzione netta considera l'insulina che sta già lavorando
             unita_correzione_reale = round(
                 max(0.0, unita_correzione_teorica - iob_val), 1)
             unita_correzione_teorica = round(unita_correzione_teorica, 1)
@@ -232,39 +231,30 @@ def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, ins
         header = "🟡 GLICEMIA TENDENTE ALL'ALTO"
         intro_fase = "Ti trovi leggermente sopra il tuo obiettivo ideale. Con piccoli accorgimenti puoi aiutare il corpo a stabilizzarsi."
 
-    # 4. Costruzione del messaggio principale
+    # 4. Costruzione del messaggio principale (Consigli base)
     msg = (
         f"{header}\n\n"
         f"{intro_fase}\n\n"
         f"La tua glicemia attuale è di {glucose_value} {measurement_unit}.\n\n"
-
         f"💧 Consigli pratici:\n"
         f"  - Bevi un bicchiere d'acqua: aiuta i reni a diluire e smaltire il piccolo eccesso di zucchero nel sangue.\n"
         f"{consiglio_movimento}\n"
-        f"💉 Analisi dell'Insulina Attiva (IOB):\n"
     )
 
-    # 5. Gestione dinamica del blocco IOB nel testo
-    if iob_val > 0:
-        msg += (
-            f"  - Hai **{iob_val:.2f} U** di insulina ancora attiva nel corpo"
-        )
-        if insulin_duration and float(insulin_duration) > 0:
-            msg += f" (durata totale impostata: {insulin_duration} ore)"
-
-        msg += (
-            ". Questa insulina sta già lavorando per abbassare la tua glicemia. "
-            "Evita assolutamente correzioni affrettate per prevenire un'ipoglicemia successiva.\n\n"
-        )
-    else:
-        msg += "  - Non hai insulina attiva in circolo (0.00 U) che possa spingere il valore verso il basso.\n\n"
-
-    # 6. Gestione della micro-correzione reale netta (esclusa se è notte o se coperta da IOB)
+    # 5 & 6. GESTIONE DINAMICA IN BASE ALL'INSULINA ATTIVA (IOB)
     if fase.lower() == "notte":
         msg += f"⚠️ Trattandosi di un controllo notturno per un valore così vicino al target ({target_ideal} {measurement_unit}), si consiglia di non fare alcuna correzione insulinica per sicurezza. È preferibile solo monitorare."
 
-    elif unita_correzione_reale is not None:
-        if iob_val > 0 and unita_correzione_reale == 0.0 and unita_correzione_teorica > 0:
+    elif iob_val > 0:
+        # Se c'è insulina attiva, mostriamo l'analisi IOB e ricalcoliamo la correzione netta
+        msg += f"💉 Analisi dell'Insulina Attiva (IOB):\n"
+        msg += f"  - Hai **{iob_val:.2f} U** di insulina ancora attiva nel corpo"
+        if insulin_duration and float(insulin_duration) > 0:
+            msg += f" (durata totale impostata: {insulin_duration} ore)"
+        msg += ". Questa insulina sta già lavorando per abbassare la tua glicemia. Evita correzioni affrettate.\n\n"
+
+        # Mostra il calcolo della correzione solo se c'è IOB da compensare
+        if unita_correzione_reale == 0.0 and unita_correzione_teorica > 0:
             msg += (
                 f"📊 **Calcolo Correzione:** La distanza dal target richiederebbe teoricamente {unita_correzione_teorica} U, "
                 f"ma poiché hai già {iob_val:.2f} U di insulina attiva, **la tua correzione reale netta è di 0.0 U**. "
@@ -273,14 +263,24 @@ def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, ins
         elif unita_correzione_reale >= 0.5:
             msg += (
                 f"📊 **Calcolo Correzione:** Sottraendo l'insulina attiva (IOB) dalla dose teorica, "
-                f"la tua **correzione netta suggerita è di {unita_correzione_reale} U** per raggiungere il target di {target_ideal} {measurement_unit} (basato su ISF: {isf}). "
+                f"la tua **correzione netta suggerita è di {unita_correzione_reale} U** per raggiungere il target di {target_ideal} {measurement_unit}. "
                 f"Valuta sempre insieme al tuo medico prima di somministrare boli fuori pasto."
             )
         else:
-            msg += f"⚖️ La distanza dal tuo target ideale ({target_ideal} {measurement_unit}) dopo aver calcolato l'insulina attiva è minima. Non è necessaria alcuna dose di correzione, basta monitorare l'andamento."
+            msg += f"⚖️ La distanza dal tuo target ideale ({target_ideal} {measurement_unit}) dopo aver calcolato l'insulina attiva è minima. Non è necessaria alcuna dose di correzione."
 
     else:
-        msg += "⚠️ Errore nel calcolo della correzione. Verifica la correttezza dei parametri glicemia e ISF."
+        # CASO IOB = 0: Pulito, senza ansia da calcoli matematici/insulina
+        if unita_correzione_reale is not None and unita_correzione_reale >= 0.5:
+            # Se la glicemia è "tendente all'alto" ma l'ISF è così basso che richiede comunque un bolo (>0.5 U)
+            msg += (
+                f"📊 **Nota sul Target:** Per raggiungere il tuo obiettivo ideale di {target_ideal} {measurement_unit} "
+                f"il calcolo teorico indicherebbe {unita_correzione_reale} U (ISF: {isf}). "
+                f"Trattandosi di una deviazione leggera, valuta con attenzione se necessario un bolo di correzione o se preferisci attendere."
+            )
+        else:
+            # Caso standard: deviazione minima e zero IOB. Non serve l'insulina.
+            msg += f"⚖️ **Stato attuale:** Non hai insulina attiva in circolo, ma lo scostamento dal tuo target ideale ({target_ideal} {measurement_unit}) è minimo. **Non è necessaria alcuna correzione insulinica**, basta monitorare l'andamento nelle prossime ore."
 
     return msg
 
