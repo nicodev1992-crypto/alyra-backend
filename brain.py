@@ -218,7 +218,7 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
 
     elif glucose_value == ideal_target:
         advice = message_database.getPerfectGlucoseMessage(
-            fase, measurement_unit, current_iob, insulin_duration, ideal_target)
+            fase, glucose_value, measurement_unit, current_iob, insulin_duration, ideal_target)
 
     elif ideal_target < glucose_value <= target_max:
         advice = message_database.getWarningHighGlucoseMessage(
@@ -227,7 +227,7 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     else:
         advice = message_database.getAlarmHighGlucoseMessage(
-            fase, glucose_value, measurement_unit, isf, insulin_duration, ideal_target)
+            fase, glucose_value, measurement_unit, isf, current_iob, insulin_duration, ideal_target)
 
     # Output finale pulito
     return advice + message_database.LEGAL_DISCLAIMER

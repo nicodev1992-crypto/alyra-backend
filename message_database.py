@@ -135,7 +135,8 @@ def getWarningLowGlucoseMessage(fase, glucose_value, measurement_unit, current_I
 def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=None, insulin_duration=None, target_ideal=120):
     """
     Genera il messaggio di conferma per glicemia perfettamente in target,
-    ottimizzato per le fases Check, Notte e Digiuno, con gestione dinamica dell'Insulina Attiva (IOB).
+    ottimizzato per le fasi Check, Notte e Digiuno.
+    Se l'insulina attiva è a 0, nasconde la sezione IOB per un feedback più pulito.
     """
 
     # 1. Definizione dell'intestazione e dell'introduzione specifica per fase
@@ -159,8 +160,6 @@ def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=
         f"  - Continua così: Non hai bisogno di assumere zuccheri di emergenza e non devi somministrare alcuna dose di insulina.\n"
         f"  - Se hai fame: Se questo è il momento di uno spuntino programmato, puoi optare per una scelta bilanciata (es. uno yogurt magro, una manciata di frutta secca o un piccolo frutto) senza dover calcolare boli di correzione.\n"
         f"  - Idratazione: Ricordati di bere acqua regolarmente per mantenere stabile questo ottimo livello.\n\n"
-
-        f"📊 Stato dell'Insulina Attiva (IOB):\n"
     )
 
     # 3. Controllo dinamico e sicuro sull'Insulina Attiva (IOB)
@@ -169,10 +168,11 @@ def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=
     except (ValueError, TypeError):
         iob_val = 0.0
 
+    # 4. Integrazione dinamica della sezione IOB (MODIFICATO QUI)
     if iob_val > 0:
-        msg += (
-            f"  - Hai ancora {iob_val:.2f} U di insulina in circolo"
-        )
+        msg += "📊 Stato dell'Insulina Attiva (IOB):\n"
+        msg += f"  - Hai ancora {iob_val:.2f} U di insulina in circolo"
+        
         if insulin_duration and float(insulin_duration) > 0:
             msg += f" (durata totale impostata: {insulin_duration} ore)"
 
@@ -181,11 +181,7 @@ def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=
             "tendere a scendere nelle prossime ore. Tieni d'occhio la tendenza e valuta un piccolo spuntino "
             "preventivo solo se noti un trend in calo rapido o se devi fare attività fisica.\n"
         )
-    else:
-        msg += (
-            f"  - 0.00 U in circolo. Non hai insulina attiva che spinge il valore verso il basso. "
-            f"Questo splendido risultato è la tua reale linea di base attuale. Zona di totale stabilità e sicurezza. ✨\n"
-        )
+    # SE È 0: Non aggiunge nulla al messaggio, lasciando il testo pulito e privo di note superflue.
 
     return msg
 
@@ -289,6 +285,7 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, curre
     """
     Genera il messaggio per l'allarme iperglicemia, ottimizzato per le fasi Check, Notte e Digiuno,
     calcolando la correzione reale netta per evitare l'insulin stacking.
+    Se l'insulina attiva è a 0, omette i dettagli e mostra solo la correzione.
     """
 
     # 1. Calcolo numerico sicuro dell'Insulina Attiva (IOB)
@@ -340,11 +337,12 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, curre
         f"  - Il tuo Fattore di Sensibilità (ISF) impostato è di {isf} {measurement_unit} per unità di insulina.\n"
     )
 
-    # 5. Integrazione dinamica della Correzione Reale e dell'IOB
-    if unita_correzione_teorica > 0:
-        msg += f"  - La distanza dal target richiede teoricamente una correzione di {unita_correzione_teorica} U.\n"
-
+    # 5. Integrazione dinamica della Correzione Reale e dell'IOB (SISTEMATO QUI)
     if iob_val > 0:
+        # Se c'è insulina attiva, mostra tutti gli avvisi sul rischio accumulo (Insulin Stacking)
+        if unita_correzione_teorica > 0:
+            msg += f"  - La distanza dal target richiede teoricamente una correzione di {unita_correzione_teorica} U.\n"
+
         msg += f"\n⚠️ Nota sull'Insulina Attiva (IOB):\n  - Hai ancora {iob_val:.2f} U di insulina in circolo nel corpo"
         if insulin_duration and float(insulin_duration) > 0:
             msg += f" (durata totale: {insulin_duration} ore)"
@@ -361,13 +359,12 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, curre
                 f"può causare un pericoloso cumulo, rischiando un'ipoglicemia grave nelle prossime ore.\n"
             )
 
-        # Mostra il calcolo netto se c'è IOB
         if unita_correzione_reale == 0.0:
             msg += f"  - 👉 CORREZIONE SUGGERITA: 0.0 U. L'insulina già attiva ({iob_val:.2f} U) è sufficiente a coprire l'eccesso. Attendi che finisca il suo effetto.\n\n"
         else:
             msg += f"  - 👉 CORREZIONE NETTA SUGGERITA: {unita_correzione_reale} U (già sottratta l'insulina attiva per sicurezza).\n\n"
     else:
-        msg += f"  - Non hai insulina attiva in circolo (0.00 U).\n"
+        # SE L'INSULINA ATTIVA È 0: Non dice nulla sulla IOB e mostra direttamente la correzione standard
         msg += f"  - 👉 CORREZIONE SUGGERITA: {unita_correzione_teorica} U.\n\n"
 
     # 6. Sezione snack (Sempre visibile)
@@ -385,7 +382,7 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, curre
 
 # Questo trafiletto legale deve essere appeso alla fine di OGNI consiglio restituito dall'app
 LEGAL_DISCLAIMER = (
-    "\n\n"
+    "\n"
     "⚠️ NOTA LEGALE\n"
     "I consigli e i calcoli forniti da questa applicazione hanno uno scopo puramente informativo "
     "e simulativo basato sui parametri inseriti. Non costituiscono in alcun modo una prescrizione, "
