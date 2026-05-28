@@ -48,7 +48,7 @@ def getAlarmLowGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB
     if iob_val > 0:
         msg += (
             f"\n⚠️ ATTENZIONE: HAI INSULINA ATTIVA (IOB)\n"
-            f"Hai ancora **{iob_val:.2f} U** di insulina in circolo"
+            f"Hai ancora {iob_val:.2f} U di insulina in circolo"
         )
         if insulin_duration and float(insulin_duration) > 0:
             msg += f" (durata totale impostata: {insulin_duration} ore)"
@@ -117,13 +117,13 @@ def getWarningLowGlucoseMessage(fase, glucose_value, measurement_unit, current_I
     if iob_val > 0:
         msg += (
             f"\n📊 ATTENZIONE: HAI INSULINA ATTIVA (IOB)\n"
-            f"  - Ci sono ancora **{iob_val:.2f} U** di insulina in circolo nel tuo corpo"
+            f"  - Ci sono ancora {iob_val:.2f} U di insulina in circolo nel tuo corpo"
         )
         if insulin_duration and float(insulin_duration) > 0:
             msg += f" (durata totale impostata: {insulin_duration} ore)"
 
         msg += (
-            ".\n  - **Cosa significa:** L'insulina continuerà a spingere la glicemia verso il basso. "
+            ".\n  - Cosa significa: L'insulina continuerà a spingere la glicemia verso il basso. "
             "Il rischio di scendere in ipoglicemia (<70 mg/dL) è elevato. "
             "Valuta se consumare carboidrati leggermente più rapidi se senti già sintomi di calo e "
             "ricontrolla tassativamente la glicemia tra 20-30 minuti.\n"
@@ -171,19 +171,19 @@ def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=
 
     if iob_val > 0:
         msg += (
-            f"  - Hai ancora **{iob_val:.2f} U** di insulina in circolo"
+            f"  - Hai ancora {iob_val:.2f} U di insulina in circolo"
         )
         if insulin_duration and float(insulin_duration) > 0:
             msg += f" (durata totale impostata: {insulin_duration} ore)"
 
         msg += (
-            ".\n  - **Nota di monitoraggio:** Poiché c'è ancora farmaco attivo, questo valore perfetto potrebbe "
+            ".\n  - Nota di monitoraggio: Poiché c'è ancora farmaco attivo, questo valore perfetto potrebbe "
             "tendere a scendere nelle prossime ore. Tieni d'occhio la tendenza e valuta un piccolo spuntino "
             "preventivo solo se noti un trend in calo rapido o se devi fare attività fisica.\n"
         )
     else:
         msg += (
-            f"  - **0.00 U** in circolo. Non hai insulina attiva che spinge il valore verso il basso. "
+            f"  - 0.00 U in circolo. Non hai insulina attiva che spinge il valore verso il basso. "
             f"Questo splendido risultato è la tua reale linea di base attuale. Zona di totale stabilità e sicurezza. ✨\n"
         )
 
@@ -248,7 +248,7 @@ def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, ins
     elif iob_val > 0:
         # Se c'è insulina attiva, mostriamo l'analisi IOB e ricalcoliamo la correzione netta
         msg += f"💉 Analisi dell'Insulina Attiva (IOB):\n"
-        msg += f"  - Hai **{iob_val:.2f} U** di insulina ancora attiva nel corpo"
+        msg += f"  - Hai {iob_val:.2f} U di insulina ancora attiva nel corpo"
         if insulin_duration and float(insulin_duration) > 0:
             msg += f" (durata totale impostata: {insulin_duration} ore)"
         msg += ". Questa insulina sta già lavorando per abbassare la tua glicemia. Evita correzioni affrettate.\n\n"
@@ -256,14 +256,14 @@ def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, ins
         # Mostra il calcolo della correzione solo se c'è IOB da compensare
         if unita_correzione_reale == 0.0 and unita_correzione_teorica > 0:
             msg += (
-                f"📊 **Calcolo Correzione:** La distanza dal target richiederebbe teoricamente {unita_correzione_teorica} U, "
-                f"ma poiché hai già {iob_val:.2f} U di insulina attiva, **la tua correzione reale netta è di 0.0 U**. "
+                f"📊 Calcolo Correzione: La distanza dal target richiederebbe teoricamente {unita_correzione_teorica} U, "
+                f"ma poiché hai già {iob_val:.2f} U di insulina attiva, la tua correzione reale netta è di 0.0 U. "
                 f"L'insulina in circolo è sufficiente, devi solo attendere che finisca il suo effetto."
             )
         elif unita_correzione_reale >= 0.5:
             msg += (
-                f"📊 **Calcolo Correzione:** Sottraendo l'insulina attiva (IOB) dalla dose teorica, "
-                f"la tua **correzione netta suggerita è di {unita_correzione_reale} U** per raggiungere il target di {target_ideal} {measurement_unit}. "
+                f"📊 Calcolo Correzione: Sottraendo l'insulina attiva (IOB) dalla dose teorica, "
+                f"la tua correzione netta suggerita è di {unita_correzione_reale} U per raggiungere il target di {target_ideal} {measurement_unit}. "
                 f"Valuta sempre insieme al tuo medico prima di somministrare boli fuori pasto."
             )
         else:
@@ -274,13 +274,13 @@ def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, ins
         if unita_correzione_reale is not None and unita_correzione_reale >= 0.5:
             # Se la glicemia è "tendente all'alto" ma l'ISF è così basso che richiede comunque un bolo (>0.5 U)
             msg += (
-                f"📊 **Nota sul Target:** Per raggiungere il tuo obiettivo ideale di {target_ideal} {measurement_unit} "
+                f"📊 Nota sul Target: Per raggiungere il tuo obiettivo ideale di {target_ideal} {measurement_unit} "
                 f"il calcolo teorico indicherebbe {unita_correzione_reale} U (ISF: {isf}). "
                 f"Trattandosi di una deviazione leggera, valuta con attenzione se necessario un bolo di correzione o se preferisci attendere."
             )
         else:
             # Caso standard: deviazione minima e zero IOB. Non serve l'insulina.
-            msg += f"⚖️ **Stato attuale:** Non hai insulina attiva in circolo, ma lo scostamento dal tuo target ideale ({target_ideal} {measurement_unit}) è minimo. **Non è necessaria alcuna correzione insulinica**, basta monitorare l'andamento nelle prossime ore."
+            msg += f"⚖️ Stato attuale: Non hai insulina attiva in circolo, ma lo scostamento dal tuo target ideale ({target_ideal} {measurement_unit}) è minimo. Non è necessaria alcuna correzione insulinica, basta monitorare l'andamento nelle prossime ore."
 
     return msg
 
@@ -342,33 +342,33 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, curre
 
     # 5. Integrazione dinamica della Correzione Reale e dell'IOB
     if unita_correzione_teorica > 0:
-        msg += f"  - La distanza dal target richiede teoricamente una correzione di **{unita_correzione_teorica} U**.\n"
+        msg += f"  - La distanza dal target richiede teoricamente una correzione di {unita_correzione_teorica} U.\n"
 
     if iob_val > 0:
-        msg += f"\n⚠️ Nota sull'Insulina Attiva (IOB):\n  - Hai ancora **{iob_val:.2f} U** di insulina in circolo nel corpo"
+        msg += f"\n⚠️ Nota sull'Insulina Attiva (IOB):\n  - Hai ancora {iob_val:.2f} U di insulina in circolo nel corpo"
         if insulin_duration and float(insulin_duration) > 0:
             msg += f" (durata totale: {insulin_duration} ore)"
         msg += ".\n"
 
         if fase.lower() == "notte":
             msg += (
-                f"  - **Rischio Notturno Elevato:** L'insulina precedente sta ancora lavorando. "
+                f"  - Rischio Notturno Elevato: L'insulina precedente sta ancora lavorando. "
                 f"Fare un altro bolo ora aumenta drasticamente il rischio di un'ipoglicemia severa mentre dormi.\n"
             )
         else:
             msg += (
-                f"  - **Rischio Insulin Stacking:** C'è già farmaco attivo. Fare un bolo intero adesso "
+                f"  - Rischio Insulin Stacking: C'è già farmaco attivo. Fare un bolo intero adesso "
                 f"può causare un pericoloso cumulo, rischiando un'ipoglicemia grave nelle prossime ore.\n"
             )
 
         # Mostra il calcolo netto se c'è IOB
         if unita_correzione_reale == 0.0:
-            msg += f"  - 👉 **CORREZIONE SUGGERITA: 0.0 U**. L'insulina già attiva ({iob_val:.2f} U) è sufficiente a coprire l'eccesso. Attendi che finisca il suo effetto.\n\n"
+            msg += f"  - 👉 CORREZIONE SUGGERITA: 0.0 U. L'insulina già attiva ({iob_val:.2f} U) è sufficiente a coprire l'eccesso. Attendi che finisca il suo effetto.\n\n"
         else:
-            msg += f"  - 👉 **CORREZIONE NETTA SUGGERITA: {unita_correzione_reale} U** (già sottratta l'insulina attiva per sicurezza).\n\n"
+            msg += f"  - 👉 CORREZIONE NETTA SUGGERITA: {unita_correzione_reale} U (già sottratta l'insulina attiva per sicurezza).\n\n"
     else:
         msg += f"  - Non hai insulina attiva in circolo (0.00 U).\n"
-        msg += f"  - 👉 **CORREZIONE SUGGERITA: {unita_correzione_teorica} U**.\n\n"
+        msg += f"  - 👉 CORREZIONE SUGGERITA: {unita_correzione_teorica} U.\n\n"
 
     # 6. Sezione snack (Sempre visibile)
     msg += (
@@ -385,7 +385,7 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, curre
 
 # Questo trafiletto legale deve essere appeso alla fine di OGNI consiglio restituito dall'app
 LEGAL_DISCLAIMER = (
-    "\n"
+    "\n\n"
     "⚠️ NOTA LEGALE\n"
     "I consigli e i calcoli forniti da questa applicazione hanno uno scopo puramente informativo "
     "e simulativo basato sui parametri inseriti. Non costituiscono in alcun modo una prescrizione, "
