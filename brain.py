@@ -118,45 +118,70 @@ def check_active_insulin_dynamic(insulin_value, insulin_time, duration_hours):
     remaining_perc = 1 - (elapsed_hours / duration_hours)
     return round(insulin_value * remaining_perc, 1)
 
+from datetime import datetime, timezone
 
-def calculate_iob(insulin_value, insulin_time, duration_hours):
-    """Calcola l'IOB residua gestendo errori di input e fusi orari."""
-
-    # 1. GESTIONE MANCANZA DATI: Se non c'è l'ora o il valore, IOB è 0
-    if not insulin_value or insulin_value <= 0 or insulin_time is None:
+def calculate_iob(insulin_units: float, insulin_time_raw, insulin_duration: float) -> float:
+    """
+    Calcola l'Insulina Attiva (IOB) con gestione robusta degli errori e fusi orari,
+    utilizzando una curva di decadimento parabolica (Modello Walsh) per massima precisione medica.
+    """
+    # 1. Controlli preventivi di sicurezza (Evita calcoli inutili)
+    if not insulin_units or insulin_units <= 0:
+        return 0.0
+    if not insulin_duration or insulin_duration <= 0:
+        return 0.0
+    if insulin_time_raw is None:
         return 0.0
 
     try:
-        # 2. CONVERSIONE: Se è una stringa (ISO da Flutter), la trasformiamo in datetime
-        if isinstance(insulin_time, str):
-            # Gestisce il formato 'Z' di Flutter/Dart trasformandolo in offset +00:00
-            insulin_time = datetime.fromisoformat(
-                insulin_time.replace('Z', '+00:00'))
+        # 2. Gestione e parsing dell'orario da Flutter (Stringa ISO o Datetime)
+        if isinstance(insulin_time_raw, str):
+            # Sostituisce la Z con il formato offset compatibile con Python standard
+            orario_pulito = insulin_time_raw.replace('Z', '+00:00')
+            ora_iniezione = datetime.fromisoformat(orario_pulito)
+        else:
+            ora_iniezione = insulin_time_raw
 
-        # 3. UNIFORMITÀ FUSO ORARIO: Forza UTC se l'oggetto è "naive"
-        if insulin_time.tzinfo is None:
-            insulin_time = insulin_time.replace(tzinfo=timezone.utc)
+        # 3. Allineamento fusi orari (Forza UTC se l'oggetto è naive)
+        if ora_iniezione.tzinfo is None:
+            ora_iniezione = ora_iniezione.replace(tzinfo=timezone.utc)
 
-        # 4. CALCOLO DIFFERENZA (Entrambi ora sono aware e UTC)
-        now = datetime.now(timezone.utc)
-        diff = now - insulin_time
-        elapsed_hours = diff.total_seconds() / 3600
+        # 4. Calcolo delle ore trascorse
+        ora_attuale = datetime.now(timezone.utc)
+        differenza_tempo = ora_attuale - ora_iniezione
+        ore_trascorse = differenza_tempo.total_seconds() / 3600.0
 
-        # 5. LOGICA DI DECADIMENTO
-        if elapsed_hours >= duration_hours or elapsed_hours < 0:
+        # 5. Vincoli temporali biologici
+        if ore_trascorse <= 0:
+            return round(float(insulin_units), 2)  # Nel futuro? Ritorna l'intera dose
+        if ore_trascorse >= insulin_duration:
             return 0.0
 
-        # Calcolo lineare della rimanente
-        remaining_perc = 1 - (elapsed_hours / duration_hours)
-        return round(insulin_value * remaining_perc, 1)
+        # 6. DECADIMENTO PARABOLICO PROFESSIONALE (Curva di Walsh)
+        # Sostituisce il calcolo lineare elementare con una fisica di assorbimento reale
+        t = ore_trascorse
+        d = insulin_duration
+
+        if t < (d / 2):
+            # Prima metà della durata: l'insulina si attiva e tocca il picco
+            percentuale_consumata = 2.0 * (t ** 2) / (d ** 2)
+        else:
+            # Seconda metà della durata: esaurimento della coda dell'insulina
+            percentuale_consumata = 1.0 - (2.0 * ((d - t) ** 2) / (d ** 2))
+
+        percentuale_residua = max(0.0, 1.0 - percentuale_consumata)
+        iob = insulin_units * percentuale_residua
+
+        # Ritorna a 2 decimali (Fondamentale per la precisione dell'insulina)
+        return round(iob, 2)
 
     except Exception as e:
-        # Se qualcosa va storto nella conversione, non crashare l'app
-        print(f"Errore nel calcolo IOB: {e}")
+        # Fail-safe assoluto: l'app non deve bloccarsi mai
+        print(f"Errore critico calcolo IOB: {e}")
         return 0.0
 
 
-def getGlucoseAdvice(glucoseData, user_id, db):  # salvo consiglio
+def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
         {"u_id": user_id}
@@ -183,26 +208,26 @@ def getGlucoseAdvice(glucoseData, user_id, db):  # salvo consiglio
 
     # CASO 1: IPOGLICEMIA (Servono zuccheri ultra-rapidi, NO grassi o proteine che rallentano l'assorbimento)
     if glucose_value <= ipo_threshold:
-        advice = message_database.getAlarmLowGlucoseMessage(fase,
-                                                            glucose_value, measurement_unit)
+        advice = message_database.getAlarmLowGlucoseMessage(
+            fase, glucose_value, measurement_unit, current_iob, insulin_duration)
 
     # CASO 2: TENDENZA AL BASSO (Glicemia calante, serve stabilità)
     elif target_min < glucose_value < ideal_target:
         advice = message_database.getWarningLowGlucoseMessage(
-            fase, glucose_value, measurement_unit, insulin_duration)
+            fase, glucose_value, measurement_unit, current_iob, insulin_duration, ideal_target)
 
     elif glucose_value == ideal_target:
         advice = message_database.getPerfectGlucoseMessage(
-            fase, measurement_unit, insulin_duration, ideal_target)
+            fase, measurement_unit, current_iob, insulin_duration, ideal_target)
 
     elif ideal_target < glucose_value <= target_max:
         advice = message_database.getWarningHighGlucoseMessage(
-            fase, glucose_value, measurement_unit, isf, insulin_duration, ideal_target)
+            fase, glucose_value, measurement_unit, isf, insulin_duration, ideal_target, current_iob)
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     else:
-        advice = message_database.getAlarmHighGlucoseMessage(fase,
-                                                             glucose_value, measurement_unit, isf, insulin_duration, ideal_target)
+        advice = message_database.getAlarmHighGlucoseMessage(
+            fase, glucose_value, measurement_unit, isf, insulin_duration, ideal_target)
 
     # Output finale pulito
     return advice + message_database.LEGAL_DISCLAIMER
@@ -265,6 +290,7 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
             status_code=404, detail="Profilo utente non trovato")
 
     glucose_value = float(df_glucose.sugar_value or 0.0)
+    
 
     # Soglie personalizzate (con valori di default medici standard)
     ipo_threshold = user_profile.get('hypo_threshold', 70)
@@ -272,6 +298,12 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
     target_max = user_profile.get('target_max', 140)
     ideal_target = user_profile.get('target_ideal', 120)
     measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
+    
+    current_iob = calculate_iob(
+        df_glucose.insulin_value,
+        df_glucose.insulin_time,
+        user_profile['insulin_duration']
+    )
 
     # 3. Logica di raccomandazione del CIBO
     advice = ""

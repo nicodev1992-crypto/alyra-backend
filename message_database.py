@@ -1,6 +1,5 @@
 
-def getAlarmLowGlucoseMessage(fase, glucose_value, measurement_unit, insulin_duration=None):
-    
+def getAlarmLowGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=None, insulin_duration=None):
     # 1. Definizione dell'intestazione e dell'introduzione specifica per fase
     if fase.lower() == "notte":
         header = "🚨 EMERGENZA IPOGLICEMIA IN DIGIUNO"
@@ -18,46 +17,59 @@ def getAlarmLowGlucoseMessage(fase, glucose_value, measurement_unit, insulin_dur
         header = "🔴 IPOGLICEMIA IMMEDIATA"
         intro_fase = "Interrompi subito qualsiasi attività tu stia facendo e correggi immediatamente il valore."
 
-    # 2. Costruzione del messaggio principale (senza doppi grassetti)
+    # 2. Costruzione del messaggio principale
     msg = (
         f"{header}\n\n"
         f"{intro_fase}\n\n"
         f"Il tuo valore è pericolosamente basso: {glucose_value} {measurement_unit}.\n"
         f"Applica subito la Regola dei 15 per far risalire i livelli in sicurezza.\n\n"
-        
+
         f"⚡ Cosa fare ORA (Assumi circa 15g di zuccheri rapidi):\n"
         f" Scegli uno solo tra questi alimenti pronti:\n"
         f"  - 1/2 bicchiere di Coca-Cola o aranciata classica (NON zero/diet)\n"
         f"  - 1 piccolo succo di frutta (circa 100-150 ml)\n"
         f"  - 3 cucchiaini o bustine di zucchero sciolti in un goccio d'acqua\n"
         f"  - 4 compresse di glucosio o destrosio\n\n"
-        
+
         f"⏱️ Cosa fare DOPO (Aspetta 15 minuti):\n"
         f"  - Resta a riposo e attendi 15 minuti senza mangiare altro cibo.\n"
         f"  - Misura nuovamente la glicemia: se è ancora inferiore a 70 mg/dL, ripeti l'assunzione di 15g di zucchero.\n\n"
-        
+
         f"❌ Errori gravi da evitare in questo momento:\n"
         f"  - Non mangiare cioccolato, merendine, biscotti o gelato. Contengono grassi che rallentano la digestione, impedendo allo zucchero di entrare rapidamente nel sangue.\n"
     )
 
-    # 3. Controllo pulito sull'Insulina Attiva (IOB)
-    if insulin_duration is not None and float(insulin_duration) > 0:
+    # 3. Controllo dinamico e integrato sull'Insulina Attiva (IOB)
+    try:
+        iob_val = float(current_IOB) if current_IOB is not None else 0.0
+    except (ValueError, TypeError):
+        iob_val = 0.0
+
+    if iob_val > 0:
         msg += (
-            f"\n⚠️ Attenzione all'Insulina Attiva (IOB):\n"
-            f"La tua insulina rimane in circolo per {insulin_duration} ore. Se hai fatto un bolo di recente, "
-            f"l'insulina continuerà a spingere la glicemia verso il basso, contrastando l'effetto dello zucchero. "
-            f"Monitorati con maggiore frequenza.\n"
+            f"\n⚠️ ATTENZIONE: HAI INSULINA ATTIVA (IOB)\n"
+            f"Hai ancora **{iob_val:.2f} U** di insulina in circolo"
+        )
+        if insulin_duration and float(insulin_duration) > 0:
+            msg += f" (durata totale impostata: {insulin_duration} ore)"
+
+        msg += (
+            ".\nQuesto significa che la glicemia tenderà a scendere ulteriormente "
+            "e contrasterà l'effetto dello zucchero appena preso. "
+            "Potrebbe essere necessario ripetere la correzione dei 15g più volte. "
+            "Monitorati con massima frequenza.\n"
         )
 
     # Nota: puoi appendere qui il tuo trafiletto legale o il consiglio dell'ambulanza
     return msg + CALL_AMBULANCE_ADVICE
 
-def getWarningLowGlucoseMessage(fase, glucose_value, measurement_unit, insulin_duration=None, target_ideal=120):
+
+def getWarningLowGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=None, insulin_duration=None, target_ideal=120):
     """
     Genera il messaggio per glicemia tendente al basso (sotto il target ideale ma sopra i 70 mg/dL),
-    ottimizzato per le fasi Check, Notte e Digiuno, con formattazione pulita.
+    ottimizzato per le fasi Check, Notte e Digiuno, con gestione dinamica dell'Insulina Attiva (IOB).
     """
-    
+
     # 1. Definizione dell'intestazione e dell'introduzione specifica per fase
     if fase.lower() == "digiuno":
         header = "🌅 GLICEMIA TENDENTE AL BASSO A DIGIUNO"
@@ -84,35 +96,48 @@ def getWarningLowGlucoseMessage(fase, glucose_value, measurement_unit, insulin_d
         f"{header}\n\n"
         f"{intro_fase}\n\n"
         f"La tua glicemia attuale è di {glucose_value} {measurement_unit}, quindi sotto il tuo target ideale di {target_ideal} {measurement_unit}.\n\n"
-        
+
         f"🥪 Spuntino di stabilizzazione (Carboidrati complessi + Grassi o Proteine):\n"
         f"  Per evitare di scivolare in una vera ipoglicemia, scegli un'opzione a lento rilascio che faccia da scudo. Esempi:\n"
         f"  - 1 pacchetto di cracker integrali\n"
         f"  - 1 fetta di pane di segale con un velo di formaggio spalmabile o 2 fette di bresaola\n"
         f"  - 1 mela piccola accompagnata da 3 o 4 mandorle\n\n"
-        
+
         f"{nota_notturna}"
         f"🛑 Attenzione all'Insulina (NO BOLO):\n"
         f"  - Non somministrare insulina per questo spuntino. Il cibo introdotto serve unicamente a riportare la glicemia in linea e a metterla in sicurezza.\n"
     )
 
-    # 3. Controllo pulito sulla durata dell'insulina attiva (IOB)
-    if insulin_duration is not None and float(insulin_duration) > 0:
+    # 3. Controllo dinamico e sicuro sull'Insulina Attiva (IOB)
+    try:
+        iob_val = float(current_IOB) if current_IOB is not None else 0.0
+    except (ValueError, TypeError):
+        iob_val = 0.0
+
+    if iob_val > 0:
         msg += (
-            f"\n📊 Verifica dell'Insulina Attiva (IOB):\n"
-            f"  - La tua insulina rimane attiva nel corpo per {insulin_duration} ore. Se hai effettuato un'iniezione di recente, "
-            f"  l'ipoglicemia potrebbe essere più vicina perché c'è ancora farmaco in circolo che spinge il valore verso il basso. "
-            f"  Ricontrolla la glicemia tra 20-30 minuti.\n"
+            f"\n📊 ATTENZIONE: HAI INSULINA ATTIVA (IOB)\n"
+            f"  - Ci sono ancora **{iob_val:.2f} U** di insulina in circolo nel tuo corpo"
         )
-        
+        if insulin_duration and float(insulin_duration) > 0:
+            msg += f" (durata totale impostata: {insulin_duration} ore)"
+
+        msg += (
+            ".\n  - **Cosa significa:** L'insulina continuerà a spingere la glicemia verso il basso. "
+            "Il rischio di scendere in ipoglicemia (<70 mg/dL) è elevato. "
+            "Valuta se consumare carboidrati leggermente più rapidi se senti già sintomi di calo e "
+            "ricontrolla tassativamente la glicemia tra 20-30 minuti.\n"
+        )
+
     return msg
 
-def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, insulin_duration=None, target_ideal=120):
+
+def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=None, insulin_duration=None, target_ideal=120):
     """
     Genera il messaggio di conferma per glicemia perfettamente in target,
-    ottimizzato per le fasi Check, Notte e Digiuno, con formattazione pulita.
+    ottimizzato per le fases Check, Notte e Digiuno, con gestione dinamica dell'Insulina Attiva (IOB).
     """
-    
+
     # 1. Definizione dell'intestazione e dell'introduzione specifica per fase
     if fase.lower() == "digiuno":
         header = "🟢 GLICEMIA PERFETTA A DIGIUNO"
@@ -129,47 +154,73 @@ def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, insulin_dura
         f"{header}\n\n"
         f"{intro_fase}\n\n"
         f"La tua glicemia è di {glucose_value} {measurement_unit}, esattamente in linea con il tuo target ideale di {target_ideal} {measurement_unit}.\n\n"
-        
+
         f"⚖️ Cosa fare adesso (Mantenimento):\n"
         f"  - Continua così: Non hai bisogno di assumere zuccheri di emergenza e non devi somministrare alcuna dose di insulina.\n"
         f"  - Se hai fame: Se questo è il momento di uno spuntino programmato, puoi optare per una scelta bilanciata (es. uno yogurt magro, una manciata di frutta secca o un piccolo frutto) senza dover calcolare boli di correzione.\n"
         f"  - Idratazione: Ricordati di bere acqua regolarmente per mantenere stabile questo ottimo livello.\n\n"
-        
+
         f"📊 Stato dell'Insulina Attiva (IOB):\n"
     )
 
-    # 3. Controllo pulito sulla durata dell'insulina attiva (IOB)
-    if insulin_duration is not None and float(insulin_duration) > 0:
+    # 3. Controllo dinamico e sicuro sull'Insulina Attiva (IOB)
+    try:
+        iob_val = float(current_IOB) if current_IOB is not None else 0.0
+    except (ValueError, TypeError):
+        iob_val = 0.0
+
+    if iob_val > 0:
         msg += (
-            f"  - La tua insulina rimane attiva nel corpo per {insulin_duration} ore. Se non hai fatto iniezioni nelle ultime ore, "
-            f"questo valore perfetto è la tua reale linea di base attuale. Se invece hai un bolo recente, monitora se la tendenza "
-            f"rimarrà stabile fino all'esaurimento del suo effetto.\n"
+            f"  - Hai ancora **{iob_val:.2f} U** di insulina in circolo"
+        )
+        if insulin_duration and float(insulin_duration) > 0:
+            msg += f" (durata totale impostata: {insulin_duration} ore)"
+
+        msg += (
+            ".\n  - **Nota di monitoraggio:** Poiché c'è ancora farmaco attivo, questo valore perfetto potrebbe "
+            "tendere a scendere nelle prossime ore. Tieni d'occhio la tendenza e valuta un piccolo spuntino "
+            "preventivo solo se noti un trend in calo rapido o se devi fare attività fisica.\n"
         )
     else:
-        msg += "  - Nessuna azione richiesta. Il tuo corpo si trova in una zona di totale sicurezza biologica.\n"
+        msg += (
+            f"  - **0.00 U** in circolo. Non hai insulina attiva che spinge il valore verso il basso. "
+            f"Questo splendido risultato è la tua reale linea di base attuale. Zona di totale stabilità e sicurezza. ✨\n"
+        )
 
     return msg
 
 
-def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, insulin_duration, target_ideal=120):
+def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, insulin_duration, target_ideal=120, current_IOB=None):
     """
     Genera il messaggio per glicemia tendente all'alto (sopra il target ideale ma sotto la soglia di iperglicemia),
-    ottimizzato per le fasi Check, Notte e Digiuno, con formattazione pulita.
+    ottimizzato per le fasi Check, Notte e Digiuno, calcolando la correzione reale netta integrando l'IOB attuale.
     """
-    
-    # 1. Calcolo matematico della correzione teorica
+
+    # 1. Calcolo numerico sicuro dell'Insulina Attiva (IOB)
+    try:
+        iob_val = float(current_IOB) if current_IOB is not None else 0.0
+    except (ValueError, TypeError):
+        iob_val = 0.0
+
+    # 2. Calcolo matematico della correzione teorica e reale netta
     try:
         punti_da_scendere = float(glucose_value) - float(target_ideal)
         if punti_da_scendere > 0 and float(isf) > 0:
-            unita_correzione = round(punti_da_scendere / float(isf), 1)
+            unita_correzione_teorica = punti_da_scendere / float(isf)
+            # La correzione netta considera l'insulina che sta già lavorando
+            unita_correzione_reale = round(
+                max(0.0, unita_correzione_teorica - iob_val), 1)
+            unita_correzione_teorica = round(unita_correzione_teorica, 1)
         else:
-            unita_correzione = 0.0
+            unita_correzione_teorica = 0.0
+            unita_correzione_reale = 0.0
     except (ValueError, TypeError):
-        unita_correzione = None
+        unita_correzione_teorica = None
+        unita_correzione_reale = None
 
-    # 2. Definizione dell'intestazione e dell'introduzione specifica per fase
+    # 3. Definizione dell'intestazione e dell'introduzione specifica per fase
     consiglio_movimento = "  - Fai una leggera attività fisica: una camminata di 10-15 minuti aiuta i muscoli a bruciare il glucosio in eccesso in modo naturale.\n"
-    
+
     if fase.lower() == "digiuno":
         header = "🌅 GLICEMIA TENDENTE ALL'ALTO A DIGIUNO"
         intro_fase = "Il tuo valore a digiuno è leggermente superiore al target ideale. Spesso un po' di idratazione aiuta a stabilizzare la linea di base."
@@ -181,49 +232,88 @@ def getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, ins
         header = "🟡 GLICEMIA TENDENTE ALL'ALTO"
         intro_fase = "Ti trovi leggermente sopra il tuo obiettivo ideale. Con piccoli accorgimenti puoi aiutare il corpo a stabilizzarsi."
 
-    # 3. Costruzione del messaggio principale
+    # 4. Costruzione del messaggio principale
     msg = (
         f"{header}\n\n"
         f"{intro_fase}\n\n"
         f"La tua glicemia attuale è di {glucose_value} {measurement_unit}.\n\n"
-        
+
         f"💧 Consigli pratici:\n"
         f"  - Bevi un bicchiere d'acqua: aiuta i reni a diluire e smaltire il piccolo eccesso di zucchero nel sangue.\n"
         f"{consiglio_movimento}\n"
-        f"💉 Verifica dell'Insulina Attiva (IOB):\n"
+        f"💉 Analisi dell'Insulina Attiva (IOB):\n"
     )
-    
-    # 4. Controllo pulito sulla durata dell'insulina attiva (IOB)
-    if insulin_duration is not None and float(insulin_duration) > 0:
+
+    # 5. Gestione dinamica del blocco IOB nel testo
+    if iob_val > 0:
         msg += (
-            f"  - La tua insulina rimane attiva nel corpo per {insulin_duration} ore. Se hai effettuato un'iniezione di recente, "
-            f"è molto probabile che il farmaco in circolo debba ancora finire il suo lavoro e che la glicemia scenda da sola. "
-            f"Evita correzioni affrettate per prevenire un'ipoglicemia successiva.\n\n"
+            f"  - Hai **{iob_val:.2f} U** di insulina ancora attiva nel corpo"
         )
-    
-    # 5. Gestione della micro-correzione teorica (esclusa o nascosta se non significativa o se è notte)
-    if fase.lower() == "notte":
-        msg += f"  - Trattandosi di un controllo notturno per un valore così vicino al target ({target_ideal} {measurement_unit}), generalmente non è necessaria alcuna correzione insulinica. È preferibile solo monitorare."
-    elif unita_correzione and unita_correzione >= 0.5:
-        msg += f"  - Solo a titolo informativo, la distanza dal tuo target ideale ({target_ideal} {measurement_unit}) corrisponderebbe a circa {unita_correzione} U di correzione teorica basata sul tuo ISF ({isf}). Valuta sempre l'insulina attiva prima di agire."
+        if insulin_duration and float(insulin_duration) > 0:
+            msg += f" (durata totale impostata: {insulin_duration} ore)"
+
+        msg += (
+            ". Questa insulina sta già lavorando per abbassare la tua glicemia. "
+            "Evita assolutamente correzioni affrettate per prevenire un'ipoglicemia successiva.\n\n"
+        )
     else:
-        msg += f"  - La distanza dal tuo target ideale ({target_ideal} {measurement_unit}) è minima. Non è necessaria alcuna correzione insulinica, basta monitorare l'andamento."
-        
+        msg += "  - Non hai insulina attiva in circolo (0.00 U) che possa spingere il valore verso il basso.\n\n"
+
+    # 6. Gestione della micro-correzione reale netta (esclusa se è notte o se coperta da IOB)
+    if fase.lower() == "notte":
+        msg += f"⚠️ Trattandosi di un controllo notturno per un valore così vicino al target ({target_ideal} {measurement_unit}), si consiglia di non fare alcuna correzione insulinica per sicurezza. È preferibile solo monitorare."
+
+    elif unita_correzione_reale is not None:
+        if iob_val > 0 and unita_correzione_reale == 0.0 and unita_correzione_teorica > 0:
+            msg += (
+                f"📊 **Calcolo Correzione:** La distanza dal target richiederebbe teoricamente {unita_correzione_teorica} U, "
+                f"ma poiché hai già {iob_val:.2f} U di insulina attiva, **la tua correzione reale netta è di 0.0 U**. "
+                f"L'insulina in circolo è sufficiente, devi solo attendere che finisca il suo effetto."
+            )
+        elif unita_correzione_reale >= 0.5:
+            msg += (
+                f"📊 **Calcolo Correzione:** Sottraendo l'insulina attiva (IOB) dalla dose teorica, "
+                f"la tua **correzione netta suggerita è di {unita_correzione_reale} U** per raggiungere il target di {target_ideal} {measurement_unit} (basato su ISF: {isf}). "
+                f"Valuta sempre insieme al tuo medico prima di somministrare boli fuori pasto."
+            )
+        else:
+            msg += f"⚖️ La distanza dal tuo target ideale ({target_ideal} {measurement_unit}) dopo aver calcolato l'insulina attiva è minima. Non è necessaria alcuna dose di correzione, basta monitorare l'andamento."
+
+    else:
+        msg += "⚠️ Errore nel calcolo della correzione. Verifica la correttezza dei parametri glicemia e ISF."
+
     return msg
 
-def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, insulin_duration=None, target_ideal=120):
-    
-    # 1. Calcolo matematico della correzione teorica necessaria
+
+def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, current_IOB=None, insulin_duration=None, target_ideal=120):
+    """
+    Genera il messaggio per l'allarme iperglicemia, ottimizzato per le fasi Check, Notte e Digiuno,
+    calcolando la correzione reale netta per evitare l'insulin stacking.
+    """
+
+    # 1. Calcolo numerico sicuro dell'Insulina Attiva (IOB)
+    try:
+        iob_val = float(current_IOB) if current_IOB is not None else 0.0
+    except (ValueError, TypeError):
+        iob_val = 0.0
+
+    # 2. Calcolo matematico della correzione teorica e reale netta
     try:
         punti_da_scendere = float(glucose_value) - float(target_ideal)
         if punti_da_scendere > 0 and float(isf) > 0:
-            unita_correzione = round(punti_da_scendere / float(isf), 1)
+            unita_correzione_teorica = punti_da_scendere / float(isf)
+            # La correzione reale sottrae l'IOB per evitare accumuli, non scende mai sotto 0
+            unita_correzione_reale = round(
+                max(0.0, unita_correzione_teorica - iob_val), 1)
+            unita_correzione_teorica = round(unita_correzione_teorica, 1)
         else:
-            unita_correzione = 0.0
+            unita_correzione_teorica = 0.0
+            unita_correzione_reale = 0.0
     except (ValueError, TypeError):
-        unita_correzione = 0.0
+        unita_correzione_teorica = 0.0
+        unita_correzione_reale = 0.0
 
-    # 2. Definizione dell'intestazione e dell'introduzione specifica per fase
+    # 3. Definizione dell'intestazione e dell'introduzione specifica per fase
     if fase.lower() == "digiuno":
         header = "🌅 IPERGLICEMIA A DIGIUNO"
         intro_fase = (
@@ -237,52 +327,60 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, insul
         header = "🟠 IPERGLICEMIA / VALORE ALTO"
         intro_fase = "Il tuo valore attuale è fuori target. Al momento è fondamentale evitare carboidrati e zuccheri."
 
-    # 3. Costruzione del messaggio principale
+    # 4. Costruzione del messaggio principale
     msg = (
         f"{header}\n\n"
         f"{intro_fase}\n\n"
         f"Glicemia rilevata: {glucose_value} {measurement_unit}.\n\n"
-        
+
         f"💧 Idratazione (Prima di tutto):\n"
         f"  - Bevi subito 1 o 2 grandi bicchieri d'acqua: aiuta i reni a filtrare e a smaltire il glucosio in eccesso attraverso le urine.\n\n"
-        
+
         f"💉 Gestione Insulina e Correzione:\n"
         f"  - Il tuo Fattore di Sensibilità (ISF) impostato è di {isf} {measurement_unit} per unità di insulina.\n"
     )
-    
-    # Mostra la correzione teorica se valida
-    if unita_correzione > 0:
-        msg += f"  - Per scendere al tuo target di {target_ideal} {measurement_unit}, sarebbero necessarie circa {unita_correzione} U di insulina rapida.\n"
-    
-    # 4. Controllo pulito sulla durata dell'insulina attiva (IOB) adattato alla fase
-    if insulin_duration is not None and float(insulin_duration) > 0:
-        msg += f"\n⚠️ Nota sull'Insulina Attiva (IOB):\n  - La tua insulina rimane attiva nel corpo per {insulin_duration} ore. "
+
+    # 5. Integrazione dinamica della Correzione Reale e dell'IOB
+    if unita_correzione_teorica > 0:
+        msg += f"  - La distanza dal target richiede teoricamente una correzione di **{unita_correzione_teorica} U**.\n"
+
+    if iob_val > 0:
+        msg += f"\n⚠️ Nota sull'Insulina Attiva (IOB):\n  - Hai ancora **{iob_val:.2f} U** di insulina in circolo nel corpo"
+        if insulin_duration and float(insulin_duration) > 0:
+            msg += f" (durata totale: {insulin_duration} ore)"
+        msg += ".\n"
+
         if fase.lower() == "notte":
             msg += (
-                f"Trattandosi di una correzione notturna, se hai fatto l'ultimo bolo meno di {insulin_duration} ore fa, "
-                f"l'insulina precedente sta ancora lavorando. Fare un altro bolo ora aumenta drasticamente il rischio "
-                f"di un'ipoglicemia severa mentre dormi. Valuta con estrema attenzione.\n\n"
+                f"  - **Rischio Notturno Elevato:** L'insulina precedente sta ancora lavorando. "
+                f"Fare un altro bolo ora aumenta drasticamente il rischio di un'ipoglicemia severa mentre dormi.\n"
             )
         else:
             msg += (
-                f"Se hai già effettuato un'iniezione meno di {insulin_duration} ore fa, c'è ancora insulina in circolo. "
-                f"Fare un altro bolo adesso può causare un pericoloso cumulo (insulin stacking), rischiando un'ipoglicemia grave nelle prossime ore.\n\n"
+                f"  - **Rischio Insulin Stacking:** C'è già farmaco attivo. Fare un bolo intero adesso "
+                f"può causare un pericoloso cumulo, rischiando un'ipoglicemia grave nelle prossime ore.\n"
             )
 
-    # 5. Sezione snack estratta dal blocco precedente (ora è sempre visibile)
+        # Mostra il calcolo netto se c'è IOB
+        if unita_correzione_reale == 0.0:
+            msg += f"  - 👉 **CORREZIONE SUGGERITA: 0.0 U**. L'insulina già attiva ({iob_val:.2f} U) è sufficiente a coprire l'eccesso. Attendi che finisca il suo effetto.\n\n"
+        else:
+            msg += f"  - 👉 **CORREZIONE NETTA SUGGERITA: {unita_correzione_reale} U** (già sottratta l'insulina attiva per sicurezza).\n\n"
+    else:
+        msg += f"  - Non hai insulina attiva in circolo (0.00 U).\n"
+        msg += f"  - 👉 **CORREZIONE SUGGERITA: {unita_correzione_teorica} U**.\n\n"
+
+    # 6. Sezione snack (Sempre visibile)
     msg += (
         f"🥦 Se hai assolutamente fame (Solo opzioni senza carboidrati):\n"
         f"  Scegli alimenti che non impattano sulla glicemia:\n"
         f"  - Qualche cubetto di parmigiano o grana\n"
         f"  - Una manciata di finocchi, sedano o cetrioli crudi\n"
         f"  - Un uovo sodo\n"
-        f"  - Qualche gheriglio di noce o mandorla (senza esagerare)\n"
+        f"  - Qualche gheriglio di noce o mandorla (senza esagerare)\n\n"
     )
-    
+
     return msg + CALL_AMBULANCE_ADVICE
-
-
-
 
 
 # Questo trafiletto legale deve essere appeso alla fine di OGNI consiglio restituito dall'app
@@ -298,7 +396,8 @@ LEGAL_DISCLAIMER = (
 
 
 CALL_AMBULANCE_ADVICE = (
-    "\n🚑 QUANDO CHIAMARE IL 118 / SOCCORSI:\n"
+    "\n"
+    "🚑 QUANDO CHIAMARE IL 118 / SOCCORSI:\n"
     "  · Se avverti forte confusione mentale, sonnolenza estrema o non ti senti in grado di deglutire in sicurezza, "
     "NON assumere liquidi o cibo e fatti aiutare da qualcuno a CHIAMARE IMMEDIATAMENTE IL 118.\n"
     "  · Se dopo aver preso gli zuccheri e aver atteso 15 minuti ripeti la procedura di correzione per la seconda volta, "

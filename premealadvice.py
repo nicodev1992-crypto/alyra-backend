@@ -1,6 +1,8 @@
+from datetime import datetime, timezone
 import message_database
 
-def getPreMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
+
+def getPreMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
     Genera il consiglio pre-pasto completo quando la glicemia è IN TARGET ma nella FASCIA ALTA
     (sopra il target ideale dell'utente ma sotto la soglia di iperglicemia).
@@ -25,7 +27,8 @@ def getPreMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
 
     # 3. Calcoli matematici di base (Dose pasto e Micro-Correzione)
     unita_pasto = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
-    unita_micro_correzione = round((glicemia_attuale - target_ideal) / isf, 1) if isf > 0 else 0.0
+    unita_micro_correzione = round(
+        (glicemia_attuale - target_ideal) / isf, 1) if isf > 0 else 0.0
     dose_totale_stimata = round(unita_pasto + unita_micro_correzione, 1)
 
     # 4. Intestazione del messaggio
@@ -48,7 +51,8 @@ def getPreMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
         )
         if peso_alimento > 0:
             densita_carbo = carbo / peso_alimento
-            grammi_da_togliere_bilancia = round(carbo_da_ridurre / densita_carbo)
+            grammi_da_togliere_bilancia = round(
+                carbo_da_ridurre / densita_carbo)
             avviso_ottimizzazione += f"  In pratica: togli circa {grammi_da_togliere_bilancia} g di prodotto dalla porzione sulla bilancia.\n"
         avviso_ottimizzazione += "\n"
 
@@ -85,8 +89,10 @@ def getPreMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
 
     # 8. Presentazione del Piano Terapeutico e scelta del dosaggio
     if carbo > 100.0:
-        unita_pasto_ottimizzato = round(75.0 / ic_ratio, 1) if ic_ratio > 0 else 0.0
-        dose_totale_ottimizzata = round(unita_pasto_ottimizzato + unita_micro_correzione, 1)
+        unita_pasto_ottimizzato = round(
+            75.0 / ic_ratio, 1) if ic_ratio > 0 else 0.0
+        dose_totale_ottimizzata = round(
+            unita_pasto_ottimizzato + unita_micro_correzione, 1)
         msg += (
             f"📊 Scelta del Dosaggio di Insulina:\n"
             f"  - Se segui il consiglio (Pasto ridotto a 75g carbo): Somministra {dose_totale_ottimizzata} U totali (di cui +{unita_micro_correzione} U di micro-correzione).\n"
@@ -102,7 +108,7 @@ def getPreMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
 
     # 9. Analisi dei Macronutrienti e Tempismo del Bolo basato sull'Indice Glicemico
     msg += "🌾 Analisi della composizione del piatto:\n"
-    
+
     if indice_glicemico.lower() == "veloce":
         msg += "  - Indice Glicemico Veloce: Anticipa il bolo di 10-15 minuti rispetto al primo boccone per frenare la salita.\n"
     elif indice_glicemico.lower() == "medio":
@@ -118,13 +124,14 @@ def getPreMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
             f"    👉 Monitoraggio: Controlla l'andamento nelle prossime {insulin_duration} ore "
             f"e valuta con il medico l'uso di un bolo d'insulina frazionato o prolungato.\n"
         )
-    
+
     if fibre >= 5.0:
         msg += f"  - Ottimo apporto di fibre ({fibre} g): agiscono da scudo naturale rallentando e spalmando l'assorbimento degli zuccheri nel tempo.\n"
 
     return msg
 
-def getPreMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
+
+def getPreMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
     Genera il consiglio pre-pasto completo quando la glicemia è IN TARGET ma nella FASCIA BASSA
     (sotto il target ideale dell'utente ma sopra la soglia di ipoglicemia).
@@ -149,7 +156,7 @@ def getPreMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
     unita_pasto = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
     punti_sotto_target = target_ideal - glicemia_attuale
     unita_sconto = round(punti_sotto_target / isf, 1) if isf > 0 else 0.0
-    
+
     # Applichiamo lo sconto evitando che la dose totale scenda sotto zero
     dose_totale_protetta = max(0.0, round(unita_pasto - unita_sconto, 1))
 
@@ -159,7 +166,7 @@ def getPreMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
         f"Ti trovi nella fascia bassa del tuo target. Il tuo valore attuale è sicuro ({glicemia_attuale} {measurement_unit}), "
         f"ma è inferiore rispetto al tuo obiettivo ideale di {target_ideal} {measurement_unit}.\n"
         f"La priorità in questo momento è consumare il pasto in sicurezza, evitando che l'azione immediata dell'insulina ti spinga in ipoglicemia.\n\n"
-        
+
         f"📋 Piano Terapeutico di Protezione:\n"
         f"  - Unità base calcolate per i carboidrati ({carbo} g): {unita_pasto} U\n"
         f"  - Sconto protettivo applicato (distanza dal target): -{unita_sconto} U\n"
@@ -207,7 +214,7 @@ def getPreMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
 
     # 7. Analisi dei Macronutrienti (Grassi, Proteine, Fibre)
     msg += "🌾 Analisi della composizione del piatto:\n"
-    
+
     if grassi >= 20.0 or proteine >= 25.0:
         msg += (
             f"  - Effetto tardivo rilevato (Grassi: {grassi} g, Proteine: {proteine} g):\n"
@@ -216,13 +223,14 @@ def getPreMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
             f"    👉 Monitoraggio: Controlla l'andamento nelle prossime {insulin_duration} ore "
             f"e valuta con il medico l'uso di un bolo d'insulina frazionato o prolungato.\n"
         )
-    
+
     if fibre >= 5.0:
         msg += f"  - Ottimo apporto di fibre ({fibre} g): agiscono da scudo naturale rallentando e spalmando l'assorbimento degli zuccheri nel tempo.\n"
 
     return msg
 
-def getPreMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
+
+def getPreMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
     Genera il consiglio pre-pasto completo quando la glicemia è PERFETTAMENTE IN TARGET.
     Infonde il nome reale del pasto per una personalizzazione totale.
@@ -249,7 +257,7 @@ def getPreMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
         f"🟢 GLICEMIA PERFETTAMENTE IN TARGET | {nome_pasto.upper()}\n\n"
         f"Fantastico! La tua glicemia attuale ({glicemia_attuale} {measurement_unit}) corrisponde esattamente al tuo obiettivo ideale di {target_ideal} {measurement_unit}.\n"
         f"Non serve alcuna correzione glicemica di partenza. Devi calcolare l'insulina unicamente per coprire i carboidrati di: {nome_pasto}.\n\n"
-        
+
         f"📋 Parametri di calcolo applicati dal tuo profilo:\n"
         f"  - Rapporto I/C (Carbo): 1 U ogni {ic_ratio} g di carboidrati\n"
     )
@@ -273,7 +281,7 @@ def getPreMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
 
     # 7. Analisi dei Macronutrienti e Tempismo del Bolo basato sull'Indice Glicemico
     msg += f"🌾 Analisi della composizione di: {nome_pasto}\n"
-    
+
     if indice_glicemico.lower() == "veloce":
         msg += f"  - Indice Glicemico Veloce: Provoca una salita rapida. Anticipa il bolo di 10-15 minuti rispetto al primo boccone di {nome_pasto}.\n"
     elif indice_glicemico.lower() == "medio":
@@ -289,13 +297,14 @@ def getPreMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData):
             f"    👉 Monitoraggio: Controlla l'andamento nelle prossime {insulin_duration} ore "
             f"e valuta con il medico l'uso di un bolo d'insulina frazionato o prolungato.\n"
         )
-    
+
     if fibre >= 5.0:
         msg += f"  - Ottimo apporto di fibre ({fibre} g): agiscono da scudo naturale rallentando e spalmando l'assorbimento degli zuccheri nel tempo.\n"
 
     return msg
 
-def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData):
+
+def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
     Genera il consiglio di emergenza pre-pasto quando la glicemia è in IPOGLICEMIA.
     Calcola matematicamente i carboidrati di correzione precisi basati su ISF e IC Ratio.
@@ -319,10 +328,11 @@ def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData):
     # 3. CALCOLO MATEMATICO PERSONALIZZATO DELLA CORREZIONE IPO
     unita_pasto_teoriche = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
     punti_sotto_target = target_ideal - glicemia_attuale
-    
+
     # Quanta insulina servirebbe per risalire? (Rapporto inverso usando ISF e IC_Ratio)
     if isf > 0 and ic_ratio > 0:
-        carbo_correzione_precisi = round((punti_sotto_target / isf) * ic_ratio, 1)
+        carbo_correzione_precisi = round(
+            (punti_sotto_target / isf) * ic_ratio, 1)
         # Limiti di sicurezza clinica: mai meno di 15g, mai più di 30g per singolo step di soccorso
         carbo_soccorso_reali = max(15.0, min(30.0, carbo_correzione_precisi))
     else:
@@ -361,7 +371,7 @@ def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData):
 
     # 7. Analisi dei rischi digestivi e strutturali del piatto (Uso di grassi, proteine, fibre e IG)
     msg += f"⚠️ Analisi dei pericoli sul piatto '{nome_pasto}':\n"
-    
+
     if grassi >= 15.0 or proteine >= 20.0:
         msg += (
             f"  - Pericolo di blocco dello stomaco (Grassi: {grassi} g, Proteine: {proteine} g):\n"
@@ -398,7 +408,7 @@ def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData):
     return msg
 
 
-def getPreMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData):
+def getPreMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
     Gestisce il calcolo e i consigli quando la glicemia pre-pasto è troppo alta.
     Incrocia i dati del profilo per calcolare il bolo totale (correzione + carboidrati)
@@ -522,8 +532,6 @@ def getPreMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData):
     return consiglio
 
 
-from datetime import datetime, timezone
-
 def calcola_iob_istantanea(insulin_units: float, insulin_time_raw, insulin_duration: float) -> float:
     """
     Calcola l'Insulina Attiva (IOB) in tempo reale basandosi su unità,
@@ -531,7 +539,7 @@ def calcola_iob_istantanea(insulin_units: float, insulin_time_raw, insulin_durat
     """
     if not insulin_units or insulin_units <= 0 or not insulin_time_raw:
         return 0.0
-        
+
     if not insulin_duration or insulin_duration <= 0:
         return 0.0
 
@@ -553,7 +561,7 @@ def calcola_iob_istantanea(insulin_units: float, insulin_time_raw, insulin_durat
     # 2. Rendiamo tutto omogeneo in UTC per non sballare con i fusi orari
     if ora_iniezione.tzinfo is None:
         ora_iniezione = ora_iniezione.replace(tzinfo=timezone.utc)
-        
+
     ora_attuale = datetime.now(timezone.utc)
 
     # 3. Calcolo del tempo passato
