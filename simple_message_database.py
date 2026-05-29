@@ -33,20 +33,7 @@ def getSevereLowGlucoseMessage(
     measurement_unit="mg/dL"
 ):
 
-    if fase.lower() == "notte":
-        fase_msg = (
-            "notturna\n"
-        )
-
-    elif fase.lower() == "digiuno":
-        fase_msg = (
-            "di digiuno.\n"
-        )
-
-    else:
-        fase_msg = (
-            "di controllo.\n"
-        )
+    fase_msg = getFaseMessage(fase)
     bolus_msg = buildIOBMessage(
         current_IOB=current_IOB,
         insulin_duration=insulin_duration,
@@ -95,46 +82,32 @@ def getWarningLowGlucoseMessage(
     target_ideal=120
 ):
 
-    if fase.lower() == "notte":
-        fase_msg = (
-            "🌙 Durante la notte è importante monitorare con attenzione.\n"
-        )
-
-    elif fase.lower() == "digiuno":
-        fase_msg = (
-            "🌅 La glicemia del mattino è leggermente sotto il target.\n"
-        )
-
-    else:
-        fase_msg = (
-            "🟡 La glicemia sta scendendo sotto il target ideale.\n"
-        )
+    fase_msg = getFaseMessage(fase)
     bolus_msg = buildIOBMessage(
         current_IOB=current_IOB,
         insulin_duration=insulin_duration,
         last_bolus_minutes=last_bolus_minutes
     )
-    msg = (
-        f"{fase_msg}\n"
+    msg = (f"GLICEMIA BASSA in fase {fase_msg}\n"
 
-        f"Glicemia attuale: {glucose_value} {measurement_unit}\n"
-        f"Target indicativo: {target_ideal} {measurement_unit}\n"
+           f"Glicemia attuale: {glucose_value} {measurement_unit}\n"
+           f"Target indicativo: {target_ideal} {measurement_unit}\n"
 
-        f"{bolus_msg}\n"
+           f"{bolus_msg}\n"
 
-        f"✅ Consigli utili:\n"
-        f"- controlla eventuali sintomi\n"
-        f"- tieni a disposizione zuccheri rapidi\n"
-        f"- valuta uno spuntino secondo il piano abituale\n"
-        f"- ricontrolla la glicemia nelle prossime misurazioni\n"
+           f"✅ Consigli utili:\n"
+           f"- controlla eventuali sintomi\n"
+           f"- tieni a disposizione zuccheri rapidi\n"
+           f"- valuta uno spuntino secondo il piano abituale\n"
+           f"- ricontrolla la glicemia nelle prossime misurazioni\n"
 
-        f"👀 Sintomi possibili:\n"
-        f"- tremore\n"
-        f"- fame improvvisa\n"
-        f"- sudorazione\n"
-        f"- stanchezza\n"
-        f"- difficoltà di concentrazione\n"
-    )
+           f"👀 Sintomi possibili:\n"
+           f"- tremore\n"
+           f"- fame improvvisa\n"
+           f"- sudorazione\n"
+           f"- stanchezza\n"
+           f"- difficoltà di concentrazione\n"
+           )
 
     return msg
 
@@ -153,22 +126,14 @@ def getPerfectGlucoseMessage(
     target_ideal=120
 ):
 
-    if fase.lower() == "notte":
-        titolo = "🌙 OTTIMO CONTROLLO NOTTURNO"
-
-    elif fase.lower() == "digiuno":
-        titolo = "🌅 GLICEMIA IN TARGET"
-
-    else:
-        titolo = "🟢 OTTIMO LAVORO"
-
+    fase_msg = getFaseMessage(fase)
     bolus_msg = buildIOBMessage(
         current_IOB=current_IOB,
         insulin_duration=insulin_duration,
         last_bolus_minutes=last_bolus_minutes
     )
     msg = (
-        f"{titolo}\n"
+        f"GLICEMIA OTTIMA in fase {fase_msg}\n"
 
         f"La glicemia è {glucose_value} {measurement_unit}.\n"
         f"Il valore è vicino al target ideale di "
@@ -201,14 +166,7 @@ def getWarningHighGlucoseMessage(
     target_ideal=120
 ):
 
-    if fase.lower() == "notte":
-        titolo = "🌙 GLICEMIA LEGGERMENTE ALTA DI NOTTE"
-
-    elif fase.lower() == "digiuno":
-        titolo = "🌅 GLICEMIA TENDENTE ALL'ALTO"
-
-    else:
-        titolo = "🟡 GLICEMIA SOPRA IL TARGET"
+    fase_msg = getFaseMessage(fase)
 
     bolus_msg = buildIOBMessage(
         current_IOB=current_IOB,
@@ -217,7 +175,7 @@ def getWarningHighGlucoseMessage(
     )
 
     msg = (
-        f"{titolo}\n"
+        f"GLICEMIA ALTA in fase {fase_msg}\n"
 
         f"Glicemia attuale: {glucose_value} {measurement_unit}\n"
         f"{bolus_msg}\n"
@@ -256,23 +214,10 @@ def getAlarmHighGlucoseMessage(
         last_bolus_minutes=last_bolus_minutes
     )
 
-    if fase.lower() == "notte":
-        fase_msg = (
-            "🌙 Controllo notturno: avvisa un adulto.\n"
-        )
-
-    elif fase.lower() == "scuola":
-        fase_msg = (
-            "🏫 Informare insegnanti o personale scolastico.\n"
-        )
-
-    else:
-        fase_msg = (
-            "🟠 Valore fuori target.\n"
-        )
+    fase_msg = getFaseMessage(fase)
 
     msg = (
-        f"🔶 GLICEMIA ALTA\n"
+        f"🔶 GLICEMIA ALTA IN FASE {fase_msg}\n"
 
         f"Glicemia rilevata: {glucose_value} {measurement_unit}\n"
 
@@ -429,3 +374,22 @@ def buildIOBMessage(
     )
 
     return msg
+
+
+def getFaseMessage(fase):
+    if fase.lower() == "notte":
+        fase_msg = (
+            "notturna\n"
+        )
+
+    elif fase.lower() == "digiuno":
+        fase_msg = (
+            "di digiuno.\n"
+        )
+
+    else:
+        fase_msg = (
+            "di controllo.\n"
+        )
+
+    return fase_msg
