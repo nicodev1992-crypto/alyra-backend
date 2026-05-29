@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import message_database
+import simple_message_database
 import premealadvice
 import postmealadvice
 
@@ -209,26 +210,34 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
 
     # CASO 1: IPOGLICEMIA (Servono zuccheri ultra-rapidi, NO grassi o proteine che rallentano l'assorbimento)
     if glucose_value <= ipo_threshold:
-        advice = message_database.getSevereLowGlucoseMessage(
-            fase, glucose_value, measurement_unit, current_iob, ic_ratio, insulin_duration)
+        advice = simple_message_database.getSevereLowGlucoseMessage(fase, glucose_value, measurement_unit)
+        # advice = message_database.getSevereLowGlucoseMessage(
+        #     fase, glucose_value, measurement_unit, current_iob, ic_ratio, insulin_duration)
 
     # CASO 2: TENDENZA AL BASSO (Glicemia calante, serve stabilità)
     elif target_min < glucose_value < ideal_target:
-        advice = message_database.getWarningLowGlucoseMessage(
-            fase, glucose_value, measurement_unit, current_iob, insulin_duration, ideal_target)
+        advice = simple_message_database.getWarningLowGlucoseMessage(fase, glucose_value, measurement_unit, ideal_target)
+        
+        # advice = message_database.getWarningLowGlucoseMessage(
+        #     fase, glucose_value, measurement_unit, current_iob, insulin_duration, ideal_target)
 
     elif glucose_value == ideal_target:
-        advice = message_database.getPerfectGlucoseMessage(
-            fase, glucose_value, measurement_unit, current_iob, insulin_duration, ideal_target)
+        advice = simple_message_database.getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, ideal_target)
+        
+        # advice = message_database.getPerfectGlucoseMessage(
+        #     fase, glucose_value, measurement_unit, current_iob, insulin_duration, ideal_target)
 
     elif ideal_target < glucose_value <= target_max:
-        advice = message_database.getWarningHighGlucoseMessage(
-            fase, glucose_value, measurement_unit, isf, insulin_duration, ideal_target, current_iob)
+        advice = simple_message_database.getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, ideal_target)
+        # advice = message_database.getWarningHighGlucoseMessage(
+        #     fase, glucose_value, measurement_unit, isf, insulin_duration, ideal_target, current_iob)
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     else:
-        advice = message_database.getAlarmHighGlucoseMessage(
-            fase, glucose_value, measurement_unit, isf, current_iob, insulin_duration, ideal_target)
+        advice = simple_message_database.getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit)
+        
+        # advice = message_database.getAlarmHighGlucoseMessage(
+        #     fase, glucose_value, measurement_unit, isf, current_iob, insulin_duration, ideal_target)
 
     # Output finale pulito
     return advice + message_database.LEGAL_DISCLAIMER
