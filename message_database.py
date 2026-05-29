@@ -2,19 +2,19 @@
 def getAlarmLowGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=None, insulin_duration=None):
     # 1. Definizione dell'intestazione e dell'introduzione specifica per fase
     if fase.lower() == "notte":
-        header = "🚨 EMERGENZA IPOGLICEMIA IN DIGIUNO"
+        header = "🔴 IPOGLICEMIA FASE NOTTURNA"
         intro_fase = (
             "L'ipoglicemia di notte va trattata immediatamente. "
             "Siediti sul letto, accendi la luce e non muoverti finché non hai preso lo zucchero.\n\n"
-            "⚠️ Nota notturna: Una volta che la glicemia sarà risalita sopra i 70 mg/dL, "
+            "⚠️ Nota: Una volta che la glicemia sarà risalita sopra i 70 mg/dL, "
             "consuma un piccolo spuntino complesso (es. 2-3 cracker o un pezzo di pane) "
-            "prima di risganciarti a dormire, per evitare ricadute."
+            "prima di metterti a dormire, per evitare ricadute."
         )
     elif fase.lower() == "digiuno":
-        header = "🌅 IPOGLICEMIA AL RISVEGLIO"
+        header = "🔴 IPOGLICEMIA FASE DIGIUNO"
         intro_fase = "Devi far risalire subito i livelli di zucchero nel sangue prima di iniziare qualsiasi attività mattutina o preparare la colazione."
     else:
-        header = "🔴 IPOGLICEMIA IMMEDIATA"
+        header = "🔴 IPOGLICEMIA FASE DI CONTROLLO"
         intro_fase = "Interrompi subito qualsiasi attività tu stia facendo e correggi immediatamente il valore."
 
     # 2. Costruzione del messaggio principale
@@ -172,7 +172,7 @@ def getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=
     if iob_val > 0:
         msg += "📊 Stato dell'Insulina Attiva (IOB):\n"
         msg += f"  - Hai ancora {iob_val:.2f} U di insulina in circolo"
-        
+
         if insulin_duration and float(insulin_duration) > 0:
             msg += f" (durata totale impostata: {insulin_duration} ore)"
 
@@ -394,11 +394,8 @@ LEGAL_DISCLAIMER = (
 
 CALL_AMBULANCE_ADVICE = (
     "\n"
-    "🚑 QUANDO CHIAMARE IL 118 / SOCCORSI:\n"
-    "  · Se avverti forte confusione mentale, sonnolenza estrema o non ti senti in grado di deglutire in sicurezza, "
-    "NON assumere liquidi o cibo e fatti aiutare da qualcuno a CHIAMARE IMMEDIATAMENTE IL 118.\n"
-    "  · Se dopo aver preso gli zuccheri e aver atteso 15 minuti ripeti la procedura di correzione per la seconda volta, "
-    "ma la glicemia continua a scendere o rimane pericolosamente bassa, CHIAMA IL 118.\n"
-    "  · Avvisa chi ti sta vicino: se dovessi perdere conoscenza, devono chiamare subito i soccorsi e "
-    "NON devono darti nulla da bere o da mangiare (va somministrato il Glucagone se disponibile).\n\n"
+    "🚑 QUANDO CHIAMARE IL 118:\n\n"
+    "· STATO ALTERATO: In caso di forte confusione, sonnolenza o difficoltà a deglutire, NON assumere cibo/liquidi e chiama subito i soccorsi.\n"
+    "· IPOGLICEMIA PERSISTENTE: Se dopo la 2° correzione (e 15 minuti di attesa) la glicemia resta pericolosamente bassa, chiama il 118.\n"
+    "· INCOSCIENZA: Istruisci chi ti è vicino: in caso di svenimento devono chiamare il 118, NON darti cibo/liquidi e somministrare il Glucagone."
 )
