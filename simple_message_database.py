@@ -27,6 +27,9 @@ EMERGENCY_MESSAGE = (
 def getSevereLowGlucoseMessage(
     fase,
     glucose_value,
+    current_IOB,
+    insulin_duration,
+    last_bolus_minutes=None,
     measurement_unit="mg/dL"
 ):
 
@@ -35,16 +38,20 @@ def getSevereLowGlucoseMessage(
             "🌙 È notte: sveglia subito un adulto e resta a riposo.\n"
         )
 
-    elif fase.lower() == "scuola":
+    elif fase.lower() == "digiuno":
         fase_msg = (
-            "🏫 Avvisa immediatamente un insegnante o un adulto.\n"
+            "Digiuno.\n"
         )
 
     else:
         fase_msg = (
             "🛑 Interrompi quello che stai facendo e siediti.\n"
         )
-
+    bolus_msg = buildIOBMessage(
+        current_IOB=current_IOB,
+        insulin_duration=insulin_duration,
+        last_bolus_minutes=last_bolus_minutes
+    )
     msg = (
         f"🔴 GLICEMIA MOLTO BASSA\n\n"
 
@@ -57,6 +64,8 @@ def getSevereLowGlucoseMessage(
         f"- assumi zuccheri rapidi secondo il piano indicato dal diabetologo\n"
         f"- ricontrolla la glicemia dopo circa 15 minuti\n"
         f"- resta a riposo\n\n"
+
+        f"{bolus_msg}\n"
 
         f"🍬 Esempi di zuccheri rapidi:\n"
         f"- succo di frutta\n"
@@ -72,7 +81,7 @@ def getSevereLowGlucoseMessage(
         f"- restare da solo\n"
     )
 
-    return msg + EMERGENCY_MESSAGE + LEGAL_DISCLAIMER
+    return msg + EMERGENCY_MESSAGE
 
 
 # ============================================================
@@ -82,6 +91,9 @@ def getSevereLowGlucoseMessage(
 def getWarningLowGlucoseMessage(
     fase,
     glucose_value,
+    current_IOB,
+    insulin_duration,
+    last_bolus_minutes=None,
     measurement_unit="mg/dL",
     target_ideal=120
 ):
@@ -100,12 +112,18 @@ def getWarningLowGlucoseMessage(
         fase_msg = (
             "🟡 La glicemia sta scendendo sotto il target ideale.\n"
         )
-
+    bolus_msg = buildIOBMessage(
+        current_IOB=current_IOB,
+        insulin_duration=insulin_duration,
+        last_bolus_minutes=last_bolus_minutes
+    )
     msg = (
         f"{fase_msg}\n\n"
 
         f"Glicemia attuale: {glucose_value} {measurement_unit}\n"
         f"Target indicativo: {target_ideal} {measurement_unit}\n\n"
+
+        f"{bolus_msg}\n"
 
         f"✅ Consigli utili:\n"
         f"- controlla eventuali sintomi\n"
@@ -121,7 +139,7 @@ def getWarningLowGlucoseMessage(
         f"- difficoltà di concentrazione\n"
     )
 
-    return msg + LEGAL_DISCLAIMER
+    return msg
 
 
 # ============================================================
@@ -131,6 +149,9 @@ def getWarningLowGlucoseMessage(
 def getPerfectGlucoseMessage(
     fase,
     glucose_value,
+    current_IOB,
+    insulin_duration,
+    last_bolus_minutes=None,
     measurement_unit="mg/dL",
     target_ideal=120
 ):
@@ -144,12 +165,19 @@ def getPerfectGlucoseMessage(
     else:
         titolo = "🟢 OTTIMO LAVORO"
 
+    bolus_msg = buildIOBMessage(
+        current_IOB=current_IOB,
+        insulin_duration=insulin_duration,
+        last_bolus_minutes=last_bolus_minutes
+    )
     msg = (
         f"{titolo}\n\n"
 
         f"La glicemia è {glucose_value} {measurement_unit}.\n"
         f"Il valore è vicino al target ideale di "
         f"{target_ideal} {measurement_unit}.\n\n"
+
+        f"{bolus_msg}\n"
 
         f"✅ Continua così:\n"
         f"- mantieni le abitudini concordate\n"
@@ -159,7 +187,7 @@ def getPerfectGlucoseMessage(
         f"🎉 Ottimo lavoro!\n"
     )
 
-    return msg + LEGAL_DISCLAIMER
+    return msg
 
 
 # ============================================================
@@ -169,6 +197,9 @@ def getPerfectGlucoseMessage(
 def getWarningHighGlucoseMessage(
     fase,
     glucose_value,
+    current_IOB,
+    insulin_duration,
+    last_bolus_minutes=None,
     measurement_unit="mg/dL",
     target_ideal=120
 ):
@@ -182,11 +213,17 @@ def getWarningHighGlucoseMessage(
     else:
         titolo = "🟡 GLICEMIA SOPRA IL TARGET"
 
+    bolus_msg = buildIOBMessage(
+        current_IOB=current_IOB,
+        insulin_duration=insulin_duration,
+        last_bolus_minutes=last_bolus_minutes
+    )
+
     msg = (
         f"{titolo}\n\n"
 
         f"Glicemia attuale: {glucose_value} {measurement_unit}\n\n"
-
+        f"{bolus_msg}\n"
         f"💧 Consigli utili:\n"
         f"- bevi acqua\n"
         f"- evita zuccheri aggiuntivi\n"
@@ -200,7 +237,7 @@ def getWarningHighGlucoseMessage(
         f"seguire le indicazioni del diabetologo.\n"
     )
 
-    return msg + LEGAL_DISCLAIMER
+    return msg
 
 
 # ============================================================
@@ -210,8 +247,17 @@ def getWarningHighGlucoseMessage(
 def getAlarmHighGlucoseMessage(
     fase,
     glucose_value,
+    current_IOB,
+    insulin_duration,
+    last_bolus_minutes=None,
     measurement_unit="mg/dL"
 ):
+
+    bolus_msg = buildIOBMessage(
+        current_IOB=current_IOB,
+        insulin_duration=insulin_duration,
+        last_bolus_minutes=last_bolus_minutes
+    )
 
     if fase.lower() == "notte":
         fase_msg = (
@@ -234,7 +280,7 @@ def getAlarmHighGlucoseMessage(
         f"Glicemia rilevata: {glucose_value} {measurement_unit}\n\n"
 
         f"{fase_msg}\n"
-
+        f"{bolus_msg}\n"
         f"💧 Cosa fare:\n"
         f"- bere acqua\n"
         f"- evitare zuccheri e bevande dolci\n"
@@ -249,7 +295,7 @@ def getAlarmHighGlucoseMessage(
         f"- bisogno frequente di urinare\n"
     )
 
-    return msg + LEGAL_DISCLAIMER
+    return msg + EMERGENCY_MESSAGE
 
 
 # ============================================================
@@ -274,3 +320,126 @@ def getKidFriendlyMessage(glucose_value):
             "💧 Lo zucchero nel sangue è un po' alto.\n"
             "Bevi acqua e avvisa un adulto 😊"
         )
+
+
+# ============================================================
+# BLOCCO AGGIUNTIVO INSULINA ATTIVA (IOB)
+# DA AGGIUNGERE AI METODI ESISTENTI
+# ============================================================
+
+def buildIOBMessage(
+    current_IOB=None,
+    insulin_duration=None,
+    last_bolus_minutes=None
+):
+    """
+    Restituisce un blocco testuale educativo
+    sull'insulina attiva da appendere ai messaggi.
+
+    NON calcola boli.
+    NON suggerisce dosi.
+    """
+
+    # --------------------------------------------------------
+    # VALIDAZIONE SICURA
+    # --------------------------------------------------------
+
+    try:
+        iob = float(current_IOB) if current_IOB is not None else 0.0
+    except (ValueError, TypeError):
+        iob = 0.0
+
+    try:
+        duration = (
+            float(insulin_duration)
+            if insulin_duration is not None
+            else None
+        )
+    except (ValueError, TypeError):
+        duration = None
+
+    # --------------------------------------------------------
+    # NESSUNA IOB
+    # --------------------------------------------------------
+
+    if iob <= 0:
+        return ""
+
+    # --------------------------------------------------------
+    # HEADER
+    # --------------------------------------------------------
+
+    msg = (
+        "\n"
+        "💉 INSULINA ATTIVA (IOB)\n"
+        f"- Sono ancora presenti circa {iob:.1f} U "
+        "di insulina attiva.\n"
+    )
+
+    # --------------------------------------------------------
+    # DURATA INSULINA
+    # --------------------------------------------------------
+
+    if duration:
+
+        msg += (
+            f"- Durata stimata dell'effetto: "
+            f"{duration:.1f} ore.\n"
+        )
+
+        if duration >= 5:
+            msg += (
+                "- L'insulina può continuare ad agire "
+                "per diverse ore dopo il bolo.\n"
+            )
+
+        elif duration >= 3:
+            msg += (
+                "- Parte dell'insulina sta ancora "
+                "lavorando nel corpo.\n"
+            )
+
+    # --------------------------------------------------------
+    # TEMPO DALL'ULTIMO BOLO
+    # --------------------------------------------------------
+
+    if last_bolus_minutes is not None:
+
+        try:
+
+            mins = int(last_bolus_minutes)
+
+            if mins < 60:
+
+                msg += (
+                    "- Il bolo è recente: l'effetto "
+                    "potrebbe aumentare nelle prossime ore.\n"
+                )
+
+            elif mins < 180:
+
+                msg += (
+                    "- L'insulina è ancora nella sua "
+                    "fase attiva.\n"
+                )
+
+            else:
+
+                msg += (
+                    "- L'effetto insulinico dovrebbe "
+                    "ridursi progressivamente.\n"
+                )
+
+        except:
+            pass
+
+    # --------------------------------------------------------
+    # EDUCAZIONE
+    # --------------------------------------------------------
+
+    msg += (
+        "- Controlla frequentemente la glicemia "
+        "e segui sempre il piano terapeutico.\n"
+    )
+
+    return msg
