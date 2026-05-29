@@ -119,7 +119,6 @@ def check_active_insulin_dynamic(insulin_value, insulin_time, duration_hours):
     remaining_perc = 1 - (elapsed_hours / duration_hours)
     return round(insulin_value * remaining_perc, 1)
 
-from datetime import datetime, timezone
 
 def calculate_iob(insulin_units: float, insulin_time_raw, insulin_duration: float) -> float:
     """
@@ -154,7 +153,8 @@ def calculate_iob(insulin_units: float, insulin_time_raw, insulin_duration: floa
 
         # 5. Vincoli temporali biologici
         if ore_trascorse <= 0:
-            return round(float(insulin_units), 2)  # Nel futuro? Ritorna l'intera dose
+            # Nel futuro? Ritorna l'intera dose
+            return round(float(insulin_units), 2)
         if ore_trascorse >= insulin_duration:
             return 0.0
 
@@ -210,32 +210,37 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
 
     # CASO 1: IPOGLICEMIA (Servono zuccheri ultra-rapidi, NO grassi o proteine che rallentano l'assorbimento)
     if glucose_value <= ipo_threshold:
-        advice = simple_message_database.getSevereLowGlucoseMessage(fase, glucose_value, measurement_unit)
+        advice = simple_message_database.getSevereLowGlucoseMessage(
+            fase, glucose_value, current_iob, insulin_duration, None, measurement_unit)
         # advice = message_database.getSevereLowGlucoseMessage(
         #     fase, glucose_value, measurement_unit, current_iob, ic_ratio, insulin_duration)
 
     # CASO 2: TENDENZA AL BASSO (Glicemia calante, serve stabilità)
     elif target_min < glucose_value < ideal_target:
-        advice = simple_message_database.getWarningLowGlucoseMessage(fase, glucose_value, measurement_unit, ideal_target)
-        
+        advice = simple_message_database.getWarningLowGlucoseMessage(
+            fase, glucose_value, current_iob, insulin_duration, None, measurement_unit, ideal_target)
+
         # advice = message_database.getWarningLowGlucoseMessage(
         #     fase, glucose_value, measurement_unit, current_iob, insulin_duration, ideal_target)
 
     elif glucose_value == ideal_target:
-        advice = simple_message_database.getPerfectGlucoseMessage(fase, glucose_value, measurement_unit, ideal_target)
-        
+        advice = simple_message_database.getPerfectGlucoseMessage(
+            fase, glucose_value,  current_iob, insulin_duration, None, measurement_unit, ideal_target)
+
         # advice = message_database.getPerfectGlucoseMessage(
         #     fase, glucose_value, measurement_unit, current_iob, insulin_duration, ideal_target)
 
     elif ideal_target < glucose_value <= target_max:
-        advice = simple_message_database.getWarningHighGlucoseMessage(fase, glucose_value, measurement_unit, ideal_target)
+        advice = simple_message_database.getWarningHighGlucoseMessage(
+            fase, glucose_value, current_iob, insulin_duration, None, measurement_unit, ideal_target)
         # advice = message_database.getWarningHighGlucoseMessage(
         #     fase, glucose_value, measurement_unit, isf, insulin_duration, ideal_target, current_iob)
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     else:
-        advice = simple_message_database.getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit)
-        
+        advice = simple_message_database.getAlarmHighGlucoseMessage(
+            fase, glucose_value, current_iob, insulin_duration, None, measurement_unit)
+
         # advice = message_database.getAlarmHighGlucoseMessage(
         #     fase, glucose_value, measurement_unit, isf, current_iob, insulin_duration, ideal_target)
 
@@ -300,7 +305,6 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
             status_code=404, detail="Profilo utente non trovato")
 
     glucose_value = float(df_glucose.sugar_value or 0.0)
-    
 
     # Soglie personalizzate (con valori di default medici standard)
     ipo_threshold = user_profile.get('hypo_threshold', 70)
@@ -308,7 +312,7 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
     target_max = user_profile.get('target_max', 140)
     ideal_target = user_profile.get('target_ideal', 120)
     measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
-    
+
     current_iob = calculate_iob(
         df_glucose.insulin_value,
         df_glucose.insulin_time,
