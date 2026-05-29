@@ -200,6 +200,7 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
     target_max = user_profile.get('target_max', 140)
     measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
     isf = user_profile.get('isf', 0)
+    ic_ratio = user_profile.get('ic_ratio', 0)
     insulin_duration = user_profile.get('insulin_duration', 0)
     measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
     ideal_target = user_profile.get('target_ideal', 110)
@@ -208,8 +209,8 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
 
     # CASO 1: IPOGLICEMIA (Servono zuccheri ultra-rapidi, NO grassi o proteine che rallentano l'assorbimento)
     if glucose_value <= ipo_threshold:
-        advice = message_database.getAlarmLowGlucoseMessage(
-            fase, glucose_value, measurement_unit, current_iob, insulin_duration)
+        advice = message_database.getSevereLowGlucoseMessage(
+            fase, glucose_value, measurement_unit, current_iob, ic_ratio, insulin_duration)
 
     # CASO 2: TENDENZA AL BASSO (Glicemia calante, serve stabilità)
     elif target_min < glucose_value < ideal_target:

@@ -1,66 +1,69 @@
 
-def getAlarmLowGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB=None, insulin_duration=None):
-    # 1. Definizione dell'intestazione e dell'introduzione specifica per fase
+def getSevereLowGlucoseMessage(fase, glucose_value, measurement_unit, current_IOB, icr, insulin_duration=None):
+    """
+    Genera un messaggio di ipoglicemia critica calcolando i grammi ESATTI di carboidrati
+    necessari per contrastare l'IOB attuale + i 15g per l'ipoglicemia.
+    """
+
+    # 2. CALCOLO MATEMATICO DEI CARBOIDRATI (CHO) PERSONALIZZATI
+    cho_per_ipoglicemia = 15  # Base standard per la regola dei 15
+    cho_per_iob = round(current_IOB * icr) # CHO necessari a coprire l'insulina attiva
+    cho_totali_necessari = cho_per_ipoglicemia + cho_per_iob
+
+    # 3. Impostazione dell'Header in base alla gravità dell'IOB
+    if current_IOB > 0:
+        header = f"🚨 ALERT CRITICO: IPOGLICEMIA ({glucose_value} {measurement_unit}) CON {current_IOB:.2f} U DI INSULINA ATTIVA"
+    else:
+        header = f"🔴 ALERT: IPOGLICEMIA IN CORSO ({glucose_value} {measurement_unit})"
+
+    # 4. Generazione del blocco d'azione specifico e quantificato
+    if current_IOB > 0 and icr > 0:
+        blocco_azione = (
+            f"⚠️ SITUAZIONE CRITICA: Hai {glucose_value} {measurement_unit} di glicemia MA hai anche {current_IOB:.2f} U di insulina attiva in circolo che continuerà ad abbassarti il valore.\n\n"
+            f"📈 Per salvarti dall'ipoglicemia e compensare l'insulina attiva devi assumere NON 15g, MA BEN {cho_totali_necessari}g di carboidrati rapidi ADESSO.\n"
+            f"*(Calcolo: 15g per la glicemia bassa + {cho_per_iob}g per coprire le {current_IOB:.2f} U di IOB basato sul tuo ICR di {icr})*\n\n"
+            f"⚡ COSA PRENDERE IMMEDIATAMENTE PER RAGGIUNGERE {cho_totali_necessari}g:\n"
+            f"Scegli UNA di queste opzioni (quantità calibrate per il tuo target attuale):\n"
+            f"  - 🥤 Circa {round(cho_totali_necessari * 9.5)} ml di Coca-Cola / Aranciata classica (circa {round((cho_totali_necessari * 9.5) / 330, 1)} lattina)\n"
+            f"  - 🧃 Circa {round(cho_totali_necessari * 8.3)} ml di succo di frutta\n"
+            f"  - 🍬 {round(cho_totali_necessari / 4)} Bustine/Cucchiaini di zucchero sciolti in acqua\n"
+            f"  - 💊 {round(cho_totali_necessari / 3.7)} Compresse di glucosio/destrosio\n"
+        )
+    else:
+        # Caso standard senza IOB (Regola dei 15 classica)
+        blocco_azione = (
+            f"📉 La tua glicemia è di {glucose_value} {measurement_unit} e non hai insulina attiva in circolo.\n\n"
+            f"⚡ COSA FARE ORA (Assumi {cho_per_ipoglicemia} g di zuccheri rapidi):\n"
+            f"Scegli una sola tra queste opzioni:\n"
+            f"  - 🥤 1/2 bicchiere di Coca-Cola o aranciata classica (NON zero/diet)\n"
+            f"  - 🧃 1 piccolo succo di frutta (circa 100-150 ml)\n"
+            f"  - 🍬 3 cucchiaini o bustine di zucchero sciolti in un goccio d'acqua\n"
+            f"  - 💊 4 compresse di glucosio o destrosio\n"
+        )
+
+    # 5. Gestione delle fasi (Notte / Digiuno / Controllo) per i consigli logistici
     if fase.lower() == "notte":
-        header = "🔴 IPOGLICEMIA FASE NOTTURNA"
-        intro_fase = (
-            "L'ipoglicemia di notte va trattata immediatamente. "
-            "Siediti sul letto, accendi la luce e non muoverti finché non hai preso lo zucchero.\n\n"
-            "⚠️ Nota: Una volta che la glicemia sarà risalita sopra i 70 mg/dL, "
-            "consuma un piccolo spuntino complesso (es. 2-3 cracker o un pezzo di pane) "
-            "prima di metterti a dormire, per evitare ricadute."
+        consiglio_fase = (
+            "🛌 ISTRUZIONI NOTTE: Resta a letto, accendi la luce. Quando sarai risalito sopra i 70 mg/dL, "
+            "mangia obbligatoriamente uno spuntino complesso (2-3 cracker o pane) per non crollare di nuovo nel sonno."
         )
     elif fase.lower() == "digiuno":
-        header = "🔴 IPOGLICEMIA FASE DIGIUNO"
-        intro_fase = "Devi far risalire subito i livelli di zucchero nel sangue prima di iniziare qualsiasi attività mattutina o preparare la colazione."
+        consiglio_fase = "🌅 ISTRUZIONI DIGIUNO: Blocca la preparazione della colazione o qualsiasi attività. Correggi prima il valore."
     else:
-        header = "🔴 IPOGLICEMIA FASE DI CONTROLLO"
-        intro_fase = "Interrompi subito qualsiasi attività tu stia facendo e correggi immediatamente il valore."
+        consiglio_fase = "🛑 ISTRUZIONI CONTROLLO: Interrompi qualsiasi attività fisica o mentale che stai svolgendo in questo momento."
 
-    # 2. Costruzione del messaggio principale
+    # 6. Assemblaggio finale del messaggio specidico
     msg = (
-        f"{header}\n\n"
-        f"{intro_fase}\n\n"
-        f"Il tuo valore è pericolosamente basso: {glucose_value} {measurement_unit}.\n"
-        f"Applica subito la Regola dei 15 per far risalire i livelli in sicurezza.\n\n"
-
-        f"⚡ Cosa fare ORA (Assumi circa 15g di zuccheri rapidi):\n"
-        f" Scegli uno solo tra questi alimenti pronti:\n"
-        f"  - 1/2 bicchiere di Coca-Cola o aranciata classica (NON zero/diet)\n"
-        f"  - 1 piccolo succo di frutta (circa 100-150 ml)\n"
-        f"  - 3 cucchiaini o bustine di zucchero sciolti in un goccio d'acqua\n"
-        f"  - 4 compresse di glucosio o destrosio\n\n"
-
-        f"⏱️ Cosa fare DOPO (Aspetta 15 minuti):\n"
-        f"  - Resta a riposo e attendi 15 minuti senza mangiare altro cibo.\n"
-        f"  - Misura nuovamente la glicemia: se è ancora inferiore a 70 mg/dL, ripeti l'assunzione di 15g di zucchero.\n\n"
-
-        f"❌ Errori gravi da evitare in questo momento:\n"
-        f"  - Non mangiare cioccolato, merendine, biscotti o gelato. Contengono grassi che rallentano la digestione, impedendo allo zucchero di entrare rapidamente nel sangue.\n"
+        f"{header}\n"
+        f"{'='*40}\n\n"
+        f"{blocco_azione}\n"
+        f"⏱️ COSA FARE DOPO:\n"
+        f"  - Aspetta 15 minuti a riposo senza toccare cibo.\n"
+        f"  - Rimisura la glicemia. Se è ancora sotto i 70 mg/dL, ripeti la procedura.\n\n"
+        f"{consiglio_fase}\n\n"
+        f"❌ PROIBITO ORA: Niente cioccolato, biscotti o grassi. Rallentano l'assorbimento e ti lasciano in ipo più a lungo.\n"
     )
 
-    # 3. Controllo dinamico e integrato sull'Insulina Attiva (IOB)
-    try:
-        iob_val = float(current_IOB) if current_IOB is not None else 0.0
-    except (ValueError, TypeError):
-        iob_val = 0.0
-
-    if iob_val > 0:
-        msg += (
-            f"\n⚠️ ATTENZIONE: HAI INSULINA ATTIVA (IOB)\n"
-            f"Hai ancora {iob_val:.2f} U di insulina in circolo"
-        )
-        if insulin_duration and float(insulin_duration) > 0:
-            msg += f" (durata totale impostata: {insulin_duration} ore)"
-
-        msg += (
-            ".\nQuesto significa che la glicemia tenderà a scendere ulteriormente "
-            "e contrasterà l'effetto dello zucchero appena preso. "
-            "Potrebbe essere necessario ripetere la correzione dei 15g più volte. "
-            "Monitorati con massima frequenza.\n"
-        )
-
-    # Nota: puoi appendere qui il tuo trafiletto legale o il consiglio dell'ambulanza
     return msg + CALL_AMBULANCE_ADVICE
 
 
@@ -382,7 +385,6 @@ def getAlarmHighGlucoseMessage(fase, glucose_value, measurement_unit, isf, curre
 
 # Questo trafiletto legale deve essere appeso alla fine di OGNI consiglio restituito dall'app
 LEGAL_DISCLAIMER = (
-    "\n"
     "⚠️ NOTA LEGALE\n"
     "I consigli e i calcoli forniti da questa applicazione hanno uno scopo puramente informativo "
     "e simulativo basato sui parametri inseriti. Non costituiscono in alcun modo una prescrizione, "
@@ -394,8 +396,9 @@ LEGAL_DISCLAIMER = (
 
 CALL_AMBULANCE_ADVICE = (
     "\n"
-    "🚑 QUANDO CHIAMARE IL 118:\n\n"
+    "🚑 QUANDO CHIAMARE IL 118:\n"
     "· STATO ALTERATO: In caso di forte confusione, sonnolenza o difficoltà a deglutire, NON assumere cibo/liquidi e chiama subito i soccorsi.\n"
     "· IPOGLICEMIA PERSISTENTE: Se dopo la 2° correzione (e 15 minuti di attesa) la glicemia resta pericolosamente bassa, chiama il 118.\n"
     "· INCOSCIENZA: Istruisci chi ti è vicino: in caso di svenimento devono chiamare il 118, NON darti cibo/liquidi e somministrare il Glucagone."
+    "\n"
 )
