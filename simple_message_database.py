@@ -1,6 +1,5 @@
 LEGAL_DISCLAIMER = (
-    "\n"
-    "⚠️ NOTA IMPORTANTE\n"
+    "\n⚠️ NOTA IMPORTANTE\n"
     "Questa applicazione NON sostituisce il medico o il diabetologo.\n"
     "I contenuti sono esclusivamente informativi ed educativi.\n"
     "Per qualsiasi decisione terapeutica seguire sempre il piano "
@@ -29,6 +28,7 @@ def getSevereLowGlucoseMessage(
     glucose_value,
     current_IOB,
     insulin_duration,
+    target_ideal,
     last_bolus_minutes=None,
     measurement_unit="mg/dL"
 ):
@@ -43,6 +43,7 @@ def getSevereLowGlucoseMessage(
         f"🔴 GLICEMIA MOLTO BASSA in fase {fase_msg} \n"
 
         f"La glicemia attuale è {glucose_value} {measurement_unit}.\n"
+        f"Target indicativo: {target_ideal} {measurement_unit}\n"
 
         f"⚡ Il corpo ha bisogno di zuccheri rapidi.\n"
         f"✅ Cosa fare:\n"
@@ -99,8 +100,8 @@ def getWarningLowGlucoseMessage(
            f"- controlla eventuali sintomi\n"
            f"- tieni a disposizione zuccheri rapidi\n"
            f"- valuta uno spuntino secondo il piano abituale\n"
-           f"- ricontrolla la glicemia nelle prossime misurazioni\n"
-
+           f"- ricontrolla la glicemia nelle prossime misurazioni\n\n"
+            
            f"👀 Sintomi possibili:\n"
            f"- tremore\n"
            f"- fame improvvisa\n"
@@ -136,8 +137,8 @@ def getPerfectGlucoseMessage(
         f"GLICEMIA OTTIMA in fase {fase_msg}\n"
 
         f"La glicemia è {glucose_value} {measurement_unit}.\n"
-        f"Il valore è vicino al target ideale di "
-        f"{target_ideal} {measurement_unit}.\n"
+        f"Il valore è esattamente come il tuo target ideale di "
+        f"{target_ideal} {measurement_unit}!.\n"
 
         f"{bolus_msg}\n"
 
@@ -178,15 +179,18 @@ def getWarningHighGlucoseMessage(
         f"GLICEMIA ALTA in fase {fase_msg}\n"
 
         f"Glicemia attuale: {glucose_value} {measurement_unit}\n"
+        f"Target indicativo: {target_ideal} {measurement_unit}\n"
+        
         f"{bolus_msg}\n"
-        f"💧 Consigli utili:\n"
+        
+        f"✅ Consigli utili:\n"
         f"- bevi acqua\n"
         f"- evita zuccheri aggiuntivi\n"
         f"- controlla come ti senti\n"
-        f"- ricontrolla la glicemia più tardi\n"
+        f"- ricontrolla la glicemia più tardi\n\n"
 
         f"🏃 Movimento leggero può aiutare "
-        f"(solo se previsto dal piano medico).\n"
+        f"(solo se previsto dal piano medico).\n\n"
 
         f"⚠️ Non modificare la terapia senza "
         f"seguire le indicazioni del diabetologo.\n"
@@ -204,6 +208,7 @@ def getAlarmHighGlucoseMessage(
     glucose_value,
     current_IOB,
     insulin_duration,
+    target_ideal,
     last_bolus_minutes=None,
     measurement_unit="mg/dL"
 ):
@@ -220,14 +225,17 @@ def getAlarmHighGlucoseMessage(
         f"🔶 GLICEMIA ALTA IN FASE {fase_msg}\n"
 
         f"Glicemia rilevata: {glucose_value} {measurement_unit}\n"
-
+        f"Target indicativo: {target_ideal} {measurement_unit}\n"
+        
         f"{fase_msg}\n"
+        
         f"{bolus_msg}\n"
+        
         f"💧 Cosa fare:\n"
         f"- bere acqua\n"
         f"- evitare zuccheri e bevande dolci\n"
         f"- seguire il piano terapeutico concordato\n"
-        f"- ricontrollare la glicemia\n"
+        f"- ricontrollare la glicemia\n\n"
 
         f"👀 Controllare eventuali sintomi:\n"
         f"- molta sete\n"
@@ -327,7 +335,7 @@ def buildIOBMessage(
         msg += (
             f"- Durata stimata dell'effetto: "
             f"se non sono passate più di {duration:.1f} ore dall'ultima somministrazione, "
-            "evitare un'ulteriore dose per prevenire uno stacking."
+            "evitare un'ulteriore dose per prevenire uno stacking.\n"
         )
 
     # --------------------------------------------------------

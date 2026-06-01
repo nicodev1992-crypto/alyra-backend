@@ -211,7 +211,7 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
     # CASO 1: IPOGLICEMIA (Servono zuccheri ultra-rapidi, NO grassi o proteine che rallentano l'assorbimento)
     if glucose_value <= ipo_threshold:
         advice = simple_message_database.getSevereLowGlucoseMessage(
-            fase, glucose_value, current_iob, insulin_duration, None, measurement_unit)
+            fase, glucose_value, current_iob, insulin_duration, ideal_target, None, measurement_unit)
         # advice = message_database.getSevereLowGlucoseMessage(
         #     fase, glucose_value, measurement_unit, current_iob, ic_ratio, insulin_duration)
 
@@ -239,7 +239,7 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     else:
         advice = simple_message_database.getAlarmHighGlucoseMessage(
-            fase, glucose_value, current_iob, insulin_duration, None, measurement_unit)
+            fase, glucose_value, current_iob, insulin_duration, ideal_target, None, measurement_unit)
 
         # advice = message_database.getAlarmHighGlucoseMessage(
         #     fase, glucose_value, measurement_unit, isf, current_iob, insulin_duration, ideal_target)
