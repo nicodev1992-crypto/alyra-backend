@@ -324,27 +324,24 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
 
     if glucose_value <= ipo_threshold:
         advice = premealadvice.getPreMealTooLowAlarmAdvice(
-            glucose_value, user_profile, measurement_unit, mealData, current_iob)
+            glucose_value, user_profile, mealData, current_iob)
 
     elif target_min < glucose_value < ideal_target:
         advice = premealadvice.getPreMealUnderTargetIdealAdvice(
-           glucose_value, user_profile, measurement_unit, mealData, current_iob)
+            glucose_value, user_profile, mealData, current_iob)
 
     elif glucose_value == ideal_target:
         advice = premealadvice.getPreMealExactTargetIdealAdvice(
-                       glucose_value, user_profile, measurement_unit, mealData, current_iob)
-
+            glucose_value, user_profile, mealData, current_iob)
 
     elif ideal_target < glucose_value < target_max:
         advice = premealadvice.getPreMealOverTargetIdealAdvice(
-                       glucose_value, user_profile, measurement_unit, mealData, current_iob)
-
+            glucose_value, user_profile, mealData, current_iob)
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     elif glucose_value >= target_max:
         advice = premealadvice.getPreMealGlucoseTooHigh(
-                       glucose_value, user_profile, measurement_unit, mealData, current_iob)
-
+            glucose_value, user_profile, mealData, current_iob)
 
     # Output finale pulito
     return advice
