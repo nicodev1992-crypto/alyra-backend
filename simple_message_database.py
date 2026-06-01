@@ -1,5 +1,5 @@
 LEGAL_DISCLAIMER = (
-    "\n⚠️ NOTA IMPORTANTE\n"
+    "⚠️ NOTA IMPORTANTE\n"
     "Questa applicazione NON sostituisce il medico o il diabetologo.\n"
     "I contenuti sono esclusivamente informativi ed educativi.\n"
     "Per qualsiasi decisione terapeutica seguire sempre il piano "
@@ -43,9 +43,9 @@ def getSevereLowGlucoseMessage(
         f"🔴 GLICEMIA MOLTO BASSA in fase {fase_msg} \n"
 
         f"La glicemia attuale è {glucose_value} {measurement_unit}.\n"
-        f"Target indicativo: {target_ideal} {measurement_unit}\n"
+        f"Target indicativo: {target_ideal} {measurement_unit}\n\n"
 
-        f"⚡ Il corpo ha bisogno di zuccheri rapidi.\n"
+        f"⚡ Il corpo ha bisogno di zuccheri rapidi.\n\n"
         f"✅ Cosa fare:\n"
         f"- avvisa subito un adulto\n"
         f"- assumi zuccheri rapidi secondo il piano indicato dal diabetologo\n"
@@ -58,7 +58,7 @@ def getSevereLowGlucoseMessage(
         f"- succo di frutta\n"
         f"- bevanda zuccherata NON zero\n"
         f"- glucosio/destrosio\n"
-        f"- zucchero sciolto in acqua\n"
+        f"- zucchero sciolto in acqua\n\n"
 
         f"❌ Evita:\n"
         f"- attività fisica\n"
@@ -180,20 +180,23 @@ def getWarningHighGlucoseMessage(
 
         f"Glicemia attuale: {glucose_value} {measurement_unit}\n"
         f"Target indicativo: {target_ideal} {measurement_unit}\n"
-        
+
         f"{bolus_msg}\n"
-        
+
         f"✅ Consigli utili:\n"
         f"- bevi acqua\n"
         f"- evita zuccheri aggiuntivi\n"
         f"- controlla come ti senti\n"
         f"- ricontrolla la glicemia più tardi\n\n"
 
-        f"🏃 Movimento leggero può aiutare "
-        f"(solo se previsto dal piano medico).\n\n"
-
-        f"⚠️ Non modificare la terapia senza "
-        f"seguire le indicazioni del diabetologo.\n"
+        f"👀 Sintomi possibili (glicemia sopra il target):\n"
+        f"- sete insolita o bocca asciutta\n"
+        f"- bisogno più frequente di urinare\n"
+        f"- senso di stanchezza o sonnolenza\n"
+        f"- leggera vista sfocata o mal di testa\n"
+        f"- irritabilità o cambi d'umore\n\n"   
+            
+        f"🏃 Movimento leggero può aiutare (es. una camminata) se previsto dal tuo piano\n"
     )
 
     return msg
@@ -226,11 +229,11 @@ def getAlarmHighGlucoseMessage(
 
         f"Glicemia rilevata: {glucose_value} {measurement_unit}\n"
         f"Target indicativo: {target_ideal} {measurement_unit}\n"
-        
+
         f"{fase_msg}\n"
-        
+
         f"{bolus_msg}\n"
-        
+
         f"💧 Cosa fare:\n"
         f"- bere acqua\n"
         f"- evitare zuccheri e bevande dolci\n"
