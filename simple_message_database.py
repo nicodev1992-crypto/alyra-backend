@@ -15,7 +15,7 @@ EMERGENCY_MESSAGE = (
     "- difficoltà a parlare\n"
     "- perdita di coscienza\n"
     "- vomito persistente\n"
-    "- difficoltà respiratoria\n"
+    "- difficoltà respiratoria"
 )
 
 
@@ -107,7 +107,7 @@ def getWarningLowGlucoseMessage(
            f"- fame improvvisa\n"
            f"- sudorazione\n"
            f"- stanchezza\n"
-           f"- difficoltà di concentrazione\n"
+           f"- difficoltà di concentrazione"
            )
 
     return msg
@@ -145,9 +145,9 @@ def getPerfectGlucoseMessage(
         f"✅ Continua così:\n"
         f"- mantieni le abitudini concordate\n"
         f"- bevi acqua regolarmente\n"
-        f"- continua il monitoraggio abituale\n"
+        f"- continua il monitoraggio abituale\n\n"
 
-        f"🎉 Ottimo lavoro!\n"
+        f"🎉 Ottimo lavoro!"
     )
 
     return msg
@@ -196,7 +196,7 @@ def getWarningHighGlucoseMessage(
         f"- leggera vista sfocata o mal di testa\n"
         f"- irritabilità o cambi d'umore\n\n"   
             
-        f"🏃 Movimento leggero può aiutare (es. una camminata) se previsto dal tuo piano\n"
+        f"🏃 Movimento leggero può aiutare (es. una camminata) se previsto dal tuo piano"
     )
 
     return msg
