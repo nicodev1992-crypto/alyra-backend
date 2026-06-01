@@ -133,9 +133,9 @@ def getPreMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData, cu
 
 def getPreMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
-    Genera il consiglio pre-pasto completo quando la glicemia è IN TARGET ma nella FASCIA BASSA
+    Genera un messaggio informativo pre-pasto quando la glicemia è IN TARGET ma nella FASCIA BASSA
     (sotto il target ideale dell'utente ma sopra la soglia di ipoglicemia).
-    Gestisce sconti terapeutici, tempistiche del bolo e analisi nutrizionale in un unico blocco isolato.
+    Fornisce analisi nutrizionali e considerazioni teoriche sui tempi del bolo.
     """
     # 1. Estrazione e pulizia dati del cibo (mealData)
     nome_pasto = mealData.name or 'Pasto'
@@ -152,88 +152,92 @@ def getPreMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData, c
     insulin_duration = float(user_profile.get('insulin_duration', 4.0))
     measurement_unit = user_profile.get('measurement_unit', 'mg/dL')
 
-    # 3. Calcoli matematici del Piano Terapeutico di Protezione
+    # 3. Calcoli matematici puramente teorici
     unita_pasto = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
     punti_sotto_target = target_ideal - glicemia_attuale
     unita_sconto = round(punti_sotto_target / isf, 1) if isf > 0 else 0.0
 
-    # Applichiamo lo sconto evitando che la dose totale scenda sotto zero
+    # Calcolo della stima teorica protetta
     dose_totale_protetta = max(0.0, round(unita_pasto - unita_sconto, 1))
 
     # 4. Costruzione del messaggio - Sezione Glicemia e Calcoli
     msg = (
-        f"🟢 GLICEMIA IN TARGET - FASCIA DI SICUREZZA\n\n"
-        f"Ti trovi nella fascia bassa del tuo target. Il tuo valore attuale è sicuro ({glicemia_attuale} {measurement_unit}), "
-        f"ma è inferiore rispetto al tuo obiettivo ideale di {target_ideal} {measurement_unit}.\n"
-        f"La priorità in questo momento è consumare il pasto in sicurezza, evitando che l'azione immediata dell'insulina ti spinga in ipoglicemia.\n\n"
+        f"🟢 GLICEMIA IN TARGET - FASCIA DI ATTENZIONE\n\n"
+        f"Il valore attuale ({glicemia_attuale} {measurement_unit}) è sicuro, ma si trova nella fascia inferiore "
+        f"rispetto al tuo obiettivo ideale di {target_ideal} {measurement_unit}.\n"
+        f"Le buone pratiche suggeriscono di gestire il pasto in modo da favorire la stabilità glicemica, "
+        f"evitando che l'azione iniziale dell'insulina possa causare cali precoci.\n\n"
 
-        f"📋 Piano Terapeutico di Protezione:\n"
-        f"  - Unità base calcolate per i carboidrati ({carbo} g): {unita_pasto} U\n"
-        f"  - Sconto protettivo applicato (distanza dal target): -{unita_sconto} U\n"
-        f"  👉 Dose totale consigliata: {dose_totale_protetta} U\n\n"
+        f"📋 Elaborazione Teorica dei Parametri:\n"
+        f"  - Stima unità base per i carboidrati ({carbo} g): {unita_pasto} U\n"
+        f"  - Sconto teorico calcolato (distanza dal target): -{unita_sconto} U\n"
+        f"  👉 Valore teorico indicativo della dose: {dose_totale_protetta} U\n\n"
     )
 
-    # 5. Controllo di sicurezza sull'Insulina Attiva (IOB)
-    if insulin_duration > 0:
+    # 5. Controllo informativo sull'Insulina Attiva (IOB)
+    if insulin_duration > 0 and current_IOB is not None:
         msg += (
-            f"📊 Monitoraggio Insulina Attiva:\n"
-            f"  La durata dell'insulina nel tuo profilo è di {insulin_duration} ore. Se hai eseguito un bolo nelle ore precedenti, "
-            f"ricorda che c'è ancora farmaco attivo nel sangue. Con una glicemia di partenza di {glicemia_attuale} {measurement_unit}, "
-            f"il rischio di un calo precoce è elevato. Monitora il sensore con attenzione durante e dopo il pasto.\n\n"
+            f"📊 Nota sull'Insulina Attiva:\n"
+            f"Il tuo profilo indica una durata dell'insulina di {insulin_duration} ore. Se hai somministrato un bolo nelle ore "
+            f"precedenti, ricorda che la presenza di farmaco ancora attivo nel sangue potrebbe accentuare la tendenza al calo. "
+            f"Si raccomanda un monitoraggio attento del sensore durante e dopo il pasto.\n\n"
         )
 
-    # 6. Strategia sul Tempismo del Bolo basata sull'Indice Glicemico (Specifico per Fascia Bassa)
-    msg += "⏳ Tempismo del bolo di sicurezza:\n"
+    # 6. Considerazioni sul Tempismo del Bolo basate sull'Indice Glicemico
+    msg += f"⏳ Considerazioni sul tempismo del bolo (Fascia Bassa):\n"
     if indice_glicemico.lower() == "lento":
         msg += (
-            f"  - Il piatto '{nome_pasto}' ha un Indice Glicemico Lento. Poiché la tua glicemia è già nella fascia bassa, "
-            f"l'insulina rapida agirebbe molto più velocemente della digestione del cibo solido.\n"
-            f"  👉 Cosa fare: Posticipa il bolo a metà pasto o subito dopo aver finito di mangiare, "
-            f"per dare tempo ai carboidrati di entrare in circolo ed evitare un crollo iniziale.\n\n"
+            f"  - Il piatto '{nome_pasto}' ha un Indice Glicemico Lento. Poiché parti da un valore vicino al limite inferiore, "
+            f"l'insulina rapida potrebbe agire prima che i carboidrati solidi vengano assimilati dallo stomaco.\n"
+            f"  👉 Indicazione generale: Le linee guida in questi casi suggeriscono di valutare, insieme al proprio medico, "
+            f"di posticipare il bolo a metà pasto o subito dopo, per assecondare i tempi della digestione.\n\n"
         )
     elif indice_glicemico.lower() == "veloce":
         msg += (
             f"  - Il piatto '{nome_pasto}' ha un Indice Glicemico Veloce. "
-            f"Tuttavia, partendo da un valore basso di {glicemia_attuale} {measurement_unit}, non devi assolutamente anticipare il bolo.\n"
-            f"  👉 Cosa fare: Esegui l'insulina esattamente un istante prima del primo boccone (o entro i primi 5 minuti dall'inizio).\n\n"
+            f"Tuttavia, considerando il valore iniziale di {glicemia_attuale} {measurement_unit}, le consuete raccomandazioni "
+            f"suggeriscono di non anticipare la somministrazione rispetto al pasto.\n"
+            f"  👉 Indicazione generale: Di norma si consiglia di effettuare l'insulina in concomitanza del primo boccone "
+            f"o nei primissimi minuti dall'inizio del pasto.\n\n"
         )
     else:
         msg += (
             f"  - Il piatto '{nome_pasto}' ha un Indice Glicemico Medio.\n"
-            f"  👉 Cosa fare: Fai l'insulina subito prima di iniziare a mangiare o nei primissimi minuti del pasto. "
-            f"Non anticipare mai il bolo di 15 minuti quando parti da questa fascia di sicurezza.\n\n"
+            f"  👉 Indicazione generale: Solitamente si suggerisce di somministrare il bolo a ridosso dell'inizio del pasto. "
+            f"In questa fascia glicemica, anticipare l'insulina di molti metri rispetto al cibo potrebbe aumentare il rischio di cali.\n\n"
         )
 
-    # Nota di rassicurazione sulle porzioni
+    # Nota informativa sulle porzioni
     if carbo > 0:
         msg += (
             f"🌾 Nota sui carboidrati:\n"
-            f"  I {carbo} g di carboidrati presenti in questo pasto sono preziosi per stabilizzare la tua curva e "
-            f"riportarti verso il centro del target. Consuma la porzione regolarmente senza tagliarla.\n\n"
+            f"I {carbo} g di carboidrati dichiarati per questo pasto sono utili per stabilizzare la curva glicemica "
+            f"e supportare il ritorno verso il centro del target ideale. È opportuno seguire le indicazioni del proprio piano nutrizionale.\n\n"
         )
 
     # 7. Analisi dei Macronutrienti (Grassi, Proteine, Fibre)
-    msg += "🌾 Analisi della composizione del piatto:\n"
+    msg += f"🥗 Analisi della composizione del piatto:\n"
 
     if grassi >= 20.0 or proteine >= 25.0:
         msg += (
-            f"  - Effetto tardivo rilevato (Grassi: {grassi} g, Proteine: {proteine} g):\n"
-            f"    Questo blocco rallenta lo svuotamento gastrico. La glicemia rimarrà stabile nelle prime 2 ore, "
-            f"ma potrebbe salire sensibilmente in seguito.\n"
-            f"    👉 Monitoraggio: Controlla l'andamento nelle prossime {insulin_duration} ore "
-            f"e valuta con il medico l'uso di un bolo d'insulina frazionato o prolungato.\n"
+            f"  - Caratteristiche nutrizionali (Grassi: {grassi} g, Proteine: {proteine} g):\n"
+            f"    Questo piatto presenta un contenuto significativo di grassi o proteine, elementi noti per prolungare i tempi di "
+            f"digestione. La glicemia potrebbe mantenersi stabile nelle ore immediate, per poi mostrare una tendenza alla salita più tardiva.\n"
+            f"    👉 Suggerimento: Monitora l'andamento nelle prossime {insulin_duration} ore e confrontati con l'équipe medica "
+            f"per valutare le migliori strategie di gestione (es. l'eventuale uso di boli prolungati o frazionati, se previsti dal dispositivo).\n\n"
         )
 
     if fibre >= 5.0:
-        msg += f"  - Ottimo apporto di fibre ({fibre} g): agiscono da scudo naturale rallentando e spalmando l'assorbimento degli zuccheri nel tempo.\n"
+        msg += f"  - Apporto di fibre ({fibre} g): La presenza di fibre contribuisce a rendere più graduale e costante nel tempo l'assorbimento dei carboidrati.\n\n"
 
     return msg
 
 
 def getPreMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
-    Genera il consiglio pre-pasto completo quando la glicemia è PERFETTAMENTE IN TARGET.
-    Infonde il nome reale del pasto per una personalizzazione totale.
+    Genera un messaggio informativo pre-pasto quando la glicemia è IN TARGET IDEALE.
+    Fornisce analisi nutrizionali, stime teoriche dell'insulina per i carboidrati
+    e considerazioni generali sulle tempistiche di somministrazione.
     """
     # 1. Estrazione e pulizia dati del cibo (mealData)
     nome_pasto = mealData.name or 'Pasto'
@@ -249,65 +253,79 @@ def getPreMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData, c
     insulin_duration = float(user_profile.get('insulin_duration', 4.0))
     measurement_unit = user_profile.get('measurement_unit', 'mg/dL')
 
-    # 3. Calcoli matematici (Solo bolo pasto, correzione a zero)
+    # 3. Calcoli matematici puramente teorici (Solo bolo pasto, correzione a zero)
     unita_pasto = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
 
     # 4. Intestazione del messaggio personalizzata con il nome del pasto
     msg = (
-        f"🟢 GLICEMIA PERFETTAMENTE IN TARGET | {nome_pasto.upper()}\n\n"
-        f"Fantastico! La tua glicemia attuale ({glicemia_attuale} {measurement_unit}) corrisponde esattamente al tuo obiettivo ideale di {target_ideal} {measurement_unit}.\n"
-        f"Non serve alcuna correzione glicemica di partenza. Devi calcolare l'insulina unicamente per coprire i carboidrati di: {nome_pasto}.\n\n"
+        f"🟢 GLICEMIA IN TARGET IDEALE | {nome_pasto.upper()}\n\n"
+        f"Il valore attuale registrato ({glicemia_attuale} {measurement_unit}) corrisponde al tuo obiettivo ideale di {target_ideal} {measurement_unit}.\n"
+        f"In questa condizione non è prevista una quota di correzione per la glicemia di partenza; i calcoli teorici "
+        f"fanno riferimento esclusivamente alla copertura dei carboidrati dichiarati per: {nome_pasto}.\n\n"
 
-        f"📋 Parametri di calcolo applicati dal tuo profilo:\n"
+        f"📋 Parametri di calcolo configurati nel profilo:\n"
         f"  - Rapporto I/C (Carbo): 1 U ogni {ic_ratio} g di carboidrati\n"
     )
 
-    # 5. Controllo di sicurezza sull'Insulina Attiva (IOB)
-    if insulin_duration > 0:
+    # 5. Controllo informativo sull'Insulina Attiva (IOB)
+    if insulin_duration > 0 and current_IOB is not None:
         msg += (
             f"  - Durata Insulina Attiva: {insulin_duration} ore.\n\n"
-            f"⚠️ Nota sull'Insulina Attiva (IOB):\n"
-            f"  Se hai effettuato un'iniezione nelle ultime ore, tieni presente che l'effetto potrebbe essere ancora parzialmente attivo. "
-            f"  Dal momento che ti trovi già sul tuo valore perfetto, monitora che il piatto '{nome_pasto}' e il nuovo bolo entrino in circolo in modo sincrono.\n\n"
+            f"📊 Nota sull'Insulina Attiva (IOB):\n"
+            f"  Se è presente dell'insulina ancora attiva in circolo da somministrazioni precedenti, ricorda che potrebbe "
+            f"influire sull'andamento post-prandiale. Si raccomanda di verificare che l'assimilazione di '{nome_pasto}' "
+            f"e l'azione del nuovo bolo siano bilanciate.\n\n"
         )
 
-    # 6. Presentazione del Piano Terapeutico Calcolato
+    # 6. Presentazione dell'Elaborazione Teorica del Piano
     msg += (
-        f"📊 Piano Terapeutico Calcolato per {nome_pasto}:\n"
-        f"  - Unità calcolate per i carboidrati ({carbo} g): {unita_pasto} U\n"
-        f"  - Correzione glicemica di partenza: 0.0 U (Sei perfettamente a target)\n"
-        f"  👉 Dose totale consigliata: {unita_pasto} U\n\n"
+        f"📊 Elaborazione Teorica per {nome_pasto}:\n"
+        f"  - Stima unità per i carboidrati ({carbo} g): {unita_pasto} U\n"
+        f"  - Correzione glicemica di partenza: 0.0 U (Valore a target ideale)\n"
+        f"  👉 Valore teorico indicativo della dose: {unita_pasto} U\n\n"
     )
 
-    # 7. Analisi dei Macronutrienti e Tempismo del Bolo basato sull'Indice Glicemico
-    msg += f"🌾 Analisi della composizione di: {nome_pasto}\n"
+    # 7. Analisi dei Macronutrienti e Considerazioni sul Tempismo basate sull'Indice Glicemico
+    msg += f"🥗 Analisi della composizione di: {nome_pasto}\n"
 
     if indice_glicemico.lower() == "veloce":
-        msg += f"  - Indice Glicemico Veloce: Provoca una salita rapida. Anticipa il bolo di 10-15 minuti rispetto al primo boccone di {nome_pasto}.\n"
+        msg += (
+            f"  - Indice Glicemico Veloce: Questo tipo di piatto favorisce un rapido incremento della glicemia. "
+            f"Le consuete linee guida, quando si parte da un valore a target, suggeriscono di valutare una somministrazione "
+            f"del bolo anticipata di circa 10-15 minuti rispetto al pasto, secondo le indicazioni del proprio medico.\n\n"
+        )
     elif indice_glicemico.lower() == "medio":
-        msg += "  - Indice Glicemico Medio: Gestione standard. Puoi fare il bolo circa 5-10 minuti prima del pasto o all'inizio.\n"
+        msg += (
+            f"  - Indice Glicemico Medio: Gestione ordinaria. Le buone pratiche generali indicano solitamente come "
+            f"opportuno eseguire il bolo circa 5-10 minuti prima del pasto o in concomitanza dell'inizio.\n\n"
+        )
     elif indice_glicemico.lower() == "lento":
-        msg += f"  - Indice Glicemico Lento: Assorbimento prolungato. Fai l'insulina a ridosso o all'inizio di {nome_pasto} per non scendere nei primi minuti.\n"
+        msg += (
+            f"  - Indice Glicemico Lento: Questo alimento prevede un assorbimento più graduale e prolungato nel tempo. "
+            f"In questi casi, le raccomandazioni standard suggeriscono di effettuare il bolo a ridosso dell'inizio del pasto "
+            f"per evitare temporanei cali glicemici nelle fasi iniziali.\n\n"
+        )
 
     if grassi >= 20.0 or proteine >= 25.0:
         msg += (
-            f"  - Effetto tardivo rilevato (Grassi: {grassi} g, Proteine: {proteine} g):\n"
-            f"    I grassi/proteine contenuti in '{nome_pasto}' rallentano lo svuotamento gastrico. La glicemia rimarrà stabile nelle prime 2 ore, "
-            f"ma potrebbe salire sensibilmente in seguito.\n"
-            f"    👉 Monitoraggio: Controlla l'andamento nelle prossime {insulin_duration} ore "
-            f"e valuta con il medico l'uso di un bolo d'insulina frazionato o prolungato.\n"
+            f"  - Caratteristiche nutrizionali (Grassi: {grassi} g, Proteine: {proteine} g):\n"
+            f"    La presenza significativa di grassi o proteine può prolungare i tempi di svuotamento dello stomaco. "
+            f"La curva glicemica potrebbe mantenersi stabile nelle prime due ore per poi mostrare un incremento successivo.\n"
+            f"    👉 Suggerimento: Si consiglia di monitorare l'andamento nelle prossime {insulin_duration} ore e di confrontarsi "
+            f"con il proprio medico per valutare l'adeguatezza di strategie specifiche (es. boli prolungati o frazionati, se previsti).\n\n"
         )
 
     if fibre >= 5.0:
-        msg += f"  - Ottimo apporto di fibre ({fibre} g): agiscono da scudo naturale rallentando e spalmando l'assorbimento degli zuccheri nel tempo.\n"
+        msg += f"  - Apporto di fibre ({fibre} g): L'ottimo contenuto di fibre contribuisce a rendere più costante e graduale il rilascio degli zuccheri nel sangue.\n\n"
 
     return msg
 
 
 def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
-    Genera il consiglio di emergenza pre-pasto quando la glicemia è in IPOGLICEMIA.
-    Calcola matematicamente i carboidrati di correzione precisi basati su ISF e IC Ratio.
+    Genera un messaggio informativo di supporto in caso di glicemia bassa pre-pasto.
+    Fornisce indicazioni basate sui parametri inseriti dall'utente nel profilo, 
+    ricordando sempre di seguire i protocolli medici personalizzati.
     """
     # 1. Estrazione e pulizia dati del cibo (mealData)
     nome_pasto = mealData.name or 'Pasto'
@@ -325,84 +343,97 @@ def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData, curren
     measurement_unit = user_profile.get('measurement_unit', 'mg/dL')
     soglia_ipo = int(user_profile.get('hypo_threshold', 70))
 
-    # 3. CALCOLO MATEMATICO PERSONALIZZATO DELLA CORREZIONE IPO
+    # 3. CALCOLO INFORMATIVO DELLA CORREZIONE
     unita_pasto_teoriche = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
     punti_sotto_target = target_ideal - glicemia_attuale
 
-    # Quanta insulina servirebbe per risalire? (Rapporto inverso usando ISF e IC_Ratio)
+    # Calcolo puramente indicativo basato sui fattori inseriti dall'utente
     if isf > 0 and ic_ratio > 0:
         carbo_correzione_precisi = round(
             (punti_sotto_target / isf) * ic_ratio, 1)
-        # Limiti di sicurezza clinica: mai meno di 15g, mai più di 30g per singolo step di soccorso
+        # Regola generale standard (Range 15g - 30g come riferimento informativo)
         carbo_soccorso_reali = max(15.0, min(30.0, carbo_correzione_precisi))
     else:
         carbo_soccorso_reali = 15.0
 
-    # 4. Intestazione dell'allarme d'emergenza
+    # 4. Intestazione informativa
     msg = (
-        f"🔴 IPOGLICEMIA IMMEDIATA | {nome_pasto.upper()}\n\n"
-        f"ATTENZIONE: Il tuo valore attuale ({glicemia_attuale} {measurement_unit}) è inferiore o vicino alla tua soglia di sicurezza di {soglia_ipo} {measurement_unit}.\n"
-        f"Il tuo obiettivo ideale impostato è di {target_ideal} {measurement_unit}. DEVI TASSATIVAMENTE RIMANDARE L'INIZIO DEL PASTO!\n\n"
+        f"ℹ️ INFORMAZIONE: Glicemia sotto il target prima di: {nome_pasto.upper()}\n\n"
+        f"Il valore attuale registrato ({glicemia_attuale} {measurement_unit}) si trova al di sotto o vicino alla "
+        f"soglia di attenzione impostata di {soglia_ipo} {measurement_unit}.\n"
+        f"In queste condizioni, le linee guida generali suggeriscono di dare la precedenza al ripristino della glicemia "
+        f"prima di iniziare il pasto vero e proprio.\n\n"
     )
 
-    # 5. Trattamento personalizzato basato sul calcolo matematico
+    # 5. Indicazioni sui carboidrati a rapido assorbimento (Regola dei 15g)
+    # Calcolo liquidi corretto: 15g di carbo equivalgono a circa 150ml di bevanda zuccherata/succo
+    ml_stimati = round((carbo_soccorso_reali / 15.0) * 150)
+    bustine_stimate = round(carbo_soccorso_reali / 5.0)
+
+    # BUG CORRETTO: Cambiato = in += per non cancellare l'intestazione precedente
     msg += (
-        f"🚨 TRATTAMENTO DI SOCCORSO PERSONALIZZATO:\n"
-        f"  Per colmare la distanza di -{punti_sotto_target} {measurement_unit} dal tuo target ideale, il calcolo matematico "
-        f"indica che devi assumere esattamente {carbo_soccorso_reali} g di carboidrati rapidi.\n\n"
-        f"  Assumi IMMEDIATAMENTE questa quota in formato esclusivamente LIQUIDO. Non consumare cibo solido.\n"
-        f"  Opzioni di somministrazione stimate per raggiungere circa {carbo_soccorso_reali} g:\n"
-        f"    - Succo di frutta: circa {round(carbo_soccorso_reali * 7.5)} ml (controlla i carboidrati totali sulla confezione)\n"
-        f"    - Coca-Cola o Aranciata classica (NON zero): circa {round(carbo_soccorso_reali * 9.5)} ml\n"
-        f"    - Zucchero bianco sciolto in acqua: {round(carbo_soccorso_reali / 5.0)} bustine/cucchiaini da caffè pieni\n"
-        f"  👉 Fatto questo, aspetta 15 minuti in totale riposo e ricontrolla la glicemia.\n\n"
+        f"🍎 GESTIONE INFORMATIVA DELLA GLICEMIA BASSA:\n"
+        f"In base ai parametri del profilo, per favorire il ritorno al target ideale ({target_ideal} {measurement_unit}), "
+        f"potrebbe essere utile assumere circa {carbo_soccorso_reali} g di carboidrati a rapida azione.\n\n"
+        f"Le linee guida suggeriscono l'uso di opzioni liquide per una risalita più rapida, come ad esempio:\n"
+        f"- Succo di frutta o bibita zuccherata classica (NON zero): circa {ml_stimati} ml\n"
+        f"- Zucchero bianco sciolto in acqua: circa {bustine_stimate} bustine/cucchiaini\n\n"
+        f"Dopo l'assunzione, è consigliabile attendere 15 minutes a riposo e verificare nuovamente il valore glicemico.\n\n"
     )
 
-    # 6. Monitoraggio Insulina Attiva (IOB)
-    if insulin_duration > 0:
+    # 6. Informazione sull'Insulina Attiva (IOB)
+    if insulin_duration > 0 and current_IOB is not None:
         msg += (
-            f"📊 Monitoraggio Insulina Attiva ({insulin_duration} ore):\n"
-            f"  La durata impostata nel tuo profilo indica che l'insulina rimane attiva per {insulin_duration} ore. "
-            f"Se hai iniettato un bolo nelle ore precedenti, ricorda che c'è ancora farmaco in circolo che sta "
-            f"spingendo la glicemia verso il basso.\n"
-            f"  Con questa spinta contraria attiva, la risalita sarà rallentata: monitora il sensore continuamente "
-            f"perché i {carbo_soccorso_reali} g appena calcolati potrebbero essere neutralizzati dall'insulina a bordo.\n\n"
+            f"📊 Nota sull'Insulina Attiva:\n"
+            f"Il profilo indica una durata dell'insulina di {insulin_duration} ore. Se è presente dell'insulina ancora attiva "
+            f"in circolo, l'azione dei carboidrati rapidi potrebbe essere parzialmente contrastata. "
+            f"Si consiglia di monitorare con attenzione l'andamento del sensore.\n\n"
         )
 
-    # 7. Analisi dei rischi digestivi e strutturali del piatto (Uso di grassi, proteine, fibre e IG)
-    msg += f"⚠️ Analisi dei pericoli sul piatto '{nome_pasto}':\n"
+    # 7. Informazioni sulla composizione del pasto e confronto carboidrati
+    msg += f"🥗 Analisi nutrizionale del piatto '{nome_pasto}':\n"
+
+    if carbo < carbo_soccorso_reali and carbo > 0:
+        msg += (
+            f"- Nota sui carboidrati del pasto: Il piatto contiene {carbo} g di carboidrati, una quota inferiore "
+            f"ai {carbo_soccorso_reali} g teoricamente necessari per correggere il valore attuale. Una volta risolta l'emergenza con "
+            f"i liquidi, potrebbe essere necessario rivalutare la composizione del pasto per stabilizzare i valori successivi.\n"
+        )
 
     if grassi >= 15.0 or proteine >= 20.0:
         msg += (
-            f"  - Pericolo di blocco dello stomaco (Grassi: {grassi} g, Proteine: {proteine} g):\n"
-            f"    Il cibo inserito ha un contenuto elevato di grassi o proteine. Non commettere l'errore di iniziare a consumarlo "
-            f"pensando che i suoi carboidrati correggano l'ipoglicemia. Questo blocco rallenta drasticamente lo svuotamento gastrico, "
-            f"impedendo allo zucchero d'emergenza liquido di entrare rapidamente nel sangue. Usa prima lo zucchero liquido.\n"
+            f"- Presenza di Grassi ({grassi} g) o Proteine ({proteine} g): I pasti ricchi di grassi o proteine tendono a "
+            f"rallentare la digestione. Per questo motivo, in caso di glicemia bassa, i cibi solidi complessi potrebbero non essere "
+            f"sufficientemente rapidi nel far risalire i valori rispetto alle soluzioni liquide.\n"
         )
-    elif carbo > 0:
+    elif carbo > 0 and carbo >= carbo_soccorso_reali:
         msg += (
-            f"  - Carboidrati solidi rilevati ({carbo} g): Anche se questo cibo contiene carboidrati, si tratta di complessi strutturali solidi "
-            f"con un Indice Glicemico stimato come '{indice_glicemico}'. I loro tempi di scomposizione e digestione sono troppo lunghi "
-            f"per gestire l'urgenza attuale. Risolvi prima l'ipoglicemia.\n"
+            f"- Carboidrati nel pasto ({carbo} g): Questo piatto contiene carboidrati solidi con indice glicemico '{indice_glicemico}'. "
+            f"Ricorda che i carboidrati complessi richiedono tempi di digestione più lunghi e non sostituiscono l'efficacia del "
+            f"carboidrato liquido in condizioni di urgenza.\n"
         )
 
     if fibre >= 5.0:
         msg += (
-            f"  - Presenza di fibre ({fibre} g): Le fibre aumentano ulteriormente l'effetto barriera nello stomaco, "
-            f"rallentando l'assorbimento di qualsiasi alimento solido consumato adesso. Conferma la necessità di usare solo liquidi puri.\n"
+            f"- Contenuto di Fibre ({fibre} g): Le fibre rallentano ulteriormente l'assorbimento gastrico, prolungando i tempi "
+            f"di assimilazione del pasto solido.\n"
         )
     msg += "\n"
 
-    # 8. Protocollo di sicurezza e attivazione soccorsi
-    msg += f"{message_database.CALL_AMBULANCE_ADVICE}\n\n"
-
-    # 9. Blocco Terapeutico Tassativo (Uso del calcolo teorico basato sull'IC Ratio)
+    # 8. Protocollo di sicurezza e nota medica fondamentale
     msg += (
-        f"🛑 INSULINA BLOCCATA:\n"
-        f"  - Unità teoriche calcolate per il pasto (Rapporto I/C di 1 U ogni {ic_ratio} g): {unita_pasto_teoriche} U\n"
-        f"  👉 AZIONE TRASVERSALE: Non eseguire assolutamente questo bolo in questo momento!\n"
-        f"  Rinvia qualsiasi somministrazione a quando la glicemia si sarà stabilizzata stabilmente sopra gli 80 {measurement_unit} "
-        f"e avrai risolto completamente tutti i sintomi dell'ipoglicemia."
+        f"⚠️ NOTA MEDICA FONDAMENTALE:\n"
+        f"Questa applicazione fornisce esclusivamente calcoli teorici e informazioni di supporto basate sui dati inseriti. "
+        f"Non sostituisce in alcun modo il parere del medico o del diabetologo. In presenza di sintomi severi, malessere "
+        f"o se la glicemia non risale dopo i tentativi di correzione, contatta immediatamente il medico o i soccorsi d'emergenza.\n\n"
+    )
+
+    # 9. Informazione sul Bolo
+    msg += (
+        f"🛑 NOTA SULL'INSULINA DEL PASTO:\n"
+        f"Il calcolo teorico per questo pasto (Rapporto I/C) prevede {unita_pasto_teoriche} U.\n"
+        f"In caso di valori bassi, le buone pratiche suggeriscono di posticipare l'erogazione del bolo del pasto a quando "
+        f"la glicemia si sarà stabilizzata in sicurezza ed i sintomi saranno completamente passati."
     )
 
     return msg
@@ -410,9 +441,9 @@ def getPreMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData, curren
 
 def getPreMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
-    Gestisce il calcolo e i consigli quando la glicemia pre-pasto è troppo alta.
-    Incrocia i dati del profilo per calcolare il bolo totale (correzione + carboidrati)
-    e suggerisce modifiche dinamiche al piatto (meno grammi o fibre) per abbassare il picco.
+    Genera un messaggio informativo di supporto quando la glicemia pre-pasto è sopra il target massimo.
+    Fornisce elaborazioni teoriche sulla dose di correzione e considerazioni nutrizionali
+    per favorire una gestione consapevole del pasto.
     """
     # 1. Estrazione dagli attributi dell'oggetto mealData (Cibo)
     nome_pasto = mealData.name or 'Pasto'
@@ -431,103 +462,100 @@ def getPreMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData, current_I
     insulin_duration = user_profile.get('insulin_duration', 4)
     ketone_threshold = float(user_profile.get('ketone_threshold', 250.0))
 
-    # 3. MATEMATICA DELL'INSULINA (Calcolo Bolo di Correzione + Pasto)
-    # Calcolo di quante unità servono solo per correggere l'iperglicemia attuale
+    # 3. MATEMATICA TEORICA DELL'INSULINA
     punti_da_scendere = glicemia_attuale - target_max
     unita_correzione = round(punti_da_scendere / isf, 1) if isf > 0 else 0.0
-
-    # Calcolo di quante unità servono per coprire i carboidrati inseriti
     unita_pasto = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
 
-    # Somma totale terapeutica
+    # Somma totale terapeutica teorica
     dose_totale_raccomandata = round(unita_pasto + unita_correzione, 1)
 
-    # 4. Intestazione dell'allarme (\u00A0 blocca i numeri sulla stessa riga)
+    # 4. Intestazione dell'allarme informativa
     consiglio = (
-        f"🟠 VALORE ELEVATO / IPERGLICEMIA ({glicemia_attuale}\u00A0mg/dL)\n"
-        f"Il tuo valore supera il limite massimo impostato di {target_max}\u00A0mg/dL.\n\n"
+        f"🟠 VALORE SOPRA IL TARGET ({glicemia_attuale}\u00A0mg/dL)\n"
+        f"Il valore attuale registrato si trova al di sopra del limite massimo impostato nel tuo profilo di {target_max}\u00A0mg/dL.\n\n"
     )
 
     # -------------------------------------------------------------------------
-    # 🚨 BLOCCO EMERGENZA CHETONI (Se la glicemia sale oltre la soglia critica)
+    # 🚨 SEZIONE INFORMATIVA CHETONI (Soglia critica)
     # -------------------------------------------------------------------------
     if glicemia_attuale >= ketone_threshold:
         consiglio += (
-            f"⚠️ ATTENZIONE LIVELLO CRITICO:\n"
-            f"La tua glicemia è sopra i {ketone_threshold}\u00A0mg/dL. Prima di mangiare, ti raccomandiamo "
-            f"tassativamente di MISURARE I CHETONI nel sangue o nelle urine per prevenire la chetoacidosi (DKA).\n"
-            f"💧 Bevi subito 2 grandi bicchieri d'acqua naturale per aiutare i reni a smaltire il glucosio.\n\n"
+            f"⚠️ NOTA SUI LIVELLI CRITICI:\n"
+            f"Considerando che il valore ha superato i {ketone_threshold}\u00A0mg/dL, le linee guida generali "
+            f"raccomandano di effettuare una VALUTAZIONE DEI CHETONI (ematici o urinari) per monitorare la sicurezza metabolica.\n"
+            f"💧 È consigliabile bere acqua naturale per supportare l'organismo nel corretto smaltimento del glucosio in eccesso.\n\n"
         )
 
     # -------------------------------------------------------------------------
-    # 💉 SEZIONE INSULINA (Calcolo esatto basato sul profilo)
+    # 💉 SEZIONE INSULINA (Elaborazione teorica basata sul profilo)
     # -------------------------------------------------------------------------
     consiglio += (
-        f"💉 PIANO TERAPEUTICO DI CORREZIONE:\n"
-        f"  · Unità per correggere l'iperglicemia: +{unita_correzione}\u00A0U (basato sul tuo ISF di {isf})\n"
-        f"  · Unità per coprire il piatto ({carbo}g carbo): {unita_pasto}\u00A0U\n"
-        f"  👉 DOSE TOTALE DA ESEGUIRE: {dose_totale_raccomandata}\u00A0U\n\n"
-        f"⏳ ANTICIPO BOLO OBBLIGATORIO:\n"
-        f"Fai l'insulina e ASPETTA 15-20 minuti prima di toccare il primo boccone. "
-        f"Questo tempo di attesa è fondamentale per permettere all'insulina di iniziare a lavorare "
-        f"evitando che il cibo spinga la glicemia ancora più in alto.\n\n"
+        f"💉 PIANO TEORICO DI CORREZIONE E COPERTURA:\n"
+        f"  · Stima unità per correzione iperglicemia: +{unita_correzione}\u00A0U (basato su ISF di {isf})\n"
+        f"  · Stima unità per copertura piatto ({carbo}g carbo): {unita_pasto}\u00A0U\n"
+        f"  👉 Valore teorico indicativo della dose totale: {dose_totale_raccomandata}\u00A0U\n\n"
+    )
+
+    # Nota integrata sull'Insulina Attiva (IOB) se presente
+    if current_IOB is not None and current_IOB > 0:
+        consiglio += (
+            f"📊 Nota sull'Insulina Attiva (IOB):\n"
+            f"  Il sistema rileva circa {current_IOB}\u00A0U di insulina ancora attiva in circolo. Ricorda di valutare "
+            f"questo dato insieme al tuo medico per l'eventuale storno dalla dose di correzione totale.\n\n"
+        )
+
+    consiglio += (
+        f"⏳ Considerazioni sul tempismo del bolo:\n"
+        f"In caso di valori di partenza elevati, le buone pratiche suggeriscono di valutare, d'intesa con il proprio medico, "
+        f"un adeguato tempo di attesa (indicativamente 15-20 minuti) tra la somministrazione del bolo e l'inizio del pasto, "
+        f"per consentire all'insulina di iniziare la sua azione di contrasto al picco post-prandiale.\n\n"
     )
 
     # -------------------------------------------------------------------------
-    # 🧠 MOTORE DI OTTIMIZZAZIONE DEL CIBO ("Ehi, ti consiglio meno...")
+    # 🧠 MOTORE DI OTTIMIZZAZIONE DEL CIBO (Consultivo)
     # -------------------------------------------------------------------------
     avviso_cibo = ""
 
-    # Se l'utente è già alto e ha scelto un pasto molto ricco di carboidrati
     if carbo > 55.0:
-        carbo_ideali_iper = 40.0  # Riduciamo il target di carbo tollerati visto che siamo alti
+        carbo_ideali_iper = 40.0
         carbo_da_togliere = round(carbo - carbo_ideali_iper, 1)
 
         avviso_cibo += (
-            f"💡 OTTIMIZZAZIONE DELLA PORZIONE SUL PIATTO '{nome_pasto}':\n"
-            f"Essendo già in iperglicemia, introdurre {carbo}\u00A0g di carboidrati renderà la discesa molto lenta e faticosa.\n"
-            f"👉 Ti consiglio di alleggerire questo pasto togliendo circa -{carbo_da_togliere}\u00A0g di carboidrati.\n"
+            f"💡 Considerazioni sulla porzione di '{nome_pasto}':\n"
+            f"Con una glicemia di partenza sopra il target, l'introduzione di una quota consistente di carboidrati ({carbo}\u00A0g) "
+            f"potrebbe rendere il ritorno al target più graduale e prolungato.\n"
+            f"👉 Potrebbe essere utile valutare una riduzione del piatto di circa -{carbo_da_togliere}\u00A0g di carboidrati.\n"
         )
 
-        # Se abbiamo il peso sulla bilancia, convertiamo i carbo in grammi reali di cibo
         if peso_alimento > 0:
             grammi_da_togliere_bilancia = round(
                 carbo_da_togliere / (carbo / peso_alimento))
-            avviso_cibo += f"👉 Sulla bilancia: togli circa {grammi_da_togliere_bilancia}\u00A0g di cibo dalla porzione.\n"
+            avviso_cibo += f"👉 Riferimento indicativo sulla bilancia: circa -{grammi_da_togliere_bilancia}\u00A0g rispetto alla porzione impostata.\n"
 
-        # Calcolo del bolo alternativo se l'utente ascolta l'app
         unita_pasto_ridotto = round(
             carbo_ideali_iper / ic_ratio, 1) if ic_ratio > 0 else 0.0
         dose_totale_ridotta = round(unita_pasto_ridotto + unita_correzione, 1)
-        avviso_cibo += f"📉 Se riduci il piatto, la nuova dose totale calcolata sarà di soli: {dose_totale_ridotta}\u00A0U.\n\n"
+        avviso_cibo += f"📉 In caso di riduzione della porzione, il valore teorico indicativo della dose calcolata diventerebbe: {dose_totale_ridotta}\u00A0U.\n\n"
 
-    # Se l'indice glicemico è veloce, il picco sarà distruttivo
-    if indice_glicemico == "Veloce":
+    if indice_glicemico.lower() == "veloce":
         avviso_cibo += (
-            "⚡ ALLERTA INDICE GLICEMICO VELOCE:\n"
-            f"Questo cibo ha un impatto rapidissimo. Se non puoi ridurlo, valuta se sostituirlo "
-            f"o se aggiungere subito della verdura fresca (fibre) come antipasto per frenare la velocità di salita.\n\n"
+            "⚡ Nota sull'Indice Glicemico Veloce:\n"
+            f"Questo alimento ha un impatto molto rapido sui valori. Se non è possibile ridurlo, le strategie comuni "
+            f"suggeriscono di valutare l'inserimento di una porzione di verdura fresca ricca di fibre come antipasto, "
+            f"per aiutare a rallentare la velocità di assorbimento degli zuccheri.\n\n"
         )
 
-    # Se gli zuccheri semplici sono dominanti
     if carbo > 0 and (zuccheri / carbo) > 0.4:
         avviso_cibo += (
-            f"🍬 NOTA SUGLI ZUCCHERI: Ci sono {zuccheri}g di zuccheri semplici. La spinta iniziale sarà "
-            f"estremamente aggressiva. Monitora accuratamente l'andamento.\n\n"
+            f"🍬 Analisi degli Zuccheri Semplici:\n"
+            f"Il piatto presenta una percentuale rilevante di zuccheri semplici ({zuccheri}g). "
+            f"Si raccomanda un attento monitoraggio della curva successiva per intercettare tempestivamente la spinta iniziale.\n\n"
         )
 
     if avviso_cibo:
-        consiglio += "🌾 ANALISI E MODIFICHE DEL CIBO CONSIGLIATE:\n" + avviso_cibo
+        consiglio += "🌾 ANALISI E VALUTAZIONI NUTRIZIONALI:\n\n" + avviso_cibo
 
-    # -------------------------------------------------------------------------
-    # 🛡️ PROTEZIONE FINALE: DURATA INSULINA ATTIVA
-    # -------------------------------------------------------------------------
-    consiglio += (
-        f"⚠️ MONITORAGGIO DI SICUREZZA:\n"
-        f"Dopo aver fatto il bolo ed aver consumato il pasto, monitora la glicemia ma EVITA di fare ulteriori "
-        f"boli di correzione ravvicinati nelle prossime {insulin_duration} ore (la durata della tua insulina attiva).\n"
-        f"Fare correzioni continue provocherebbe un pericoloso accumulo ('stacking') con conseguente crollo ipoglicemico tardivo."
-    )
 
     return consiglio
 
