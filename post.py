@@ -163,49 +163,47 @@ def insert_unified_log(
                 # Se non c'è, Pydantic passerà None -> NULL nel DB
                 "ins_time": glucose_data.insulin_time
             })
-
+        
+        tmpAdvice = ""
         if "pre" in phase:
-            db.commit()
-            return {"status": "success",
-                    "message": "Dati salvati correttamente",
-                    "advice": brain.getPreFoodAdvice(glucose_data, u_id, db, meal_data)
-                    }
+            tmpAdvice = brain.getPreFoodAdvice(
+                glucose_data, u_id, db, meal_data)
+        else:
+            tmpAdvice = brain.getPostMealFoodAdvice(
+                glucose_data, meal_data, u_id, db)
+            # Salva il pasto dato che ha mangiato
+            if meal_data.carbs_grams > 0:
+                query_meal = text("""
+                    INSERT INTO meals (
+                        user_id, name, carbs_grams, sugars_grams, 
+                        fats_grams, proteins_grams, fibers_grams, 
+                        glycemic_index, notes, consumed_at, meal_grams
+                    )
+                    VALUES (
+                        :u_id, :name, :carb, :sug, 
+                        :fat, :prot, :fib, 
+                        :g_idx, :not, :at, :m_grams
+                    )
+                """)
+                db.execute(query_meal, {
+                    "u_id": u_id,
+                    "name": meal_data.name or "Pasto",
+                    "m_grams": meal_data.meal_grams,
+                    "carb": meal_data.carbs_grams,
+                    "sug": meal_data.sugars_grams,
+                    "fat": meal_data.fats_grams,
+                    "prot": meal_data.proteins_grams,
+                    "fib": meal_data.fibers_grams,
+                    "g_idx": meal_data.glycemic_index,
+                    "not": meal_data.notes,
+                    "at": meal_data.consumed_at
+                })
 
-        # Salva il pasto solo se l'utente ha mangiato
-        if meal_data.carbs_grams > 0:
-            query_meal = text("""
-                INSERT INTO meals (
-                    user_id, name, carbs_grams, sugars_grams, 
-                    fats_grams, proteins_grams, fibers_grams, 
-                    glycemic_index, notes, consumed_at, meal_grams
-                )
-                VALUES (
-                    :u_id, :name, :carb, :sug, 
-                    :fat, :prot, :fib, 
-                    :g_idx, :not, :at, :m_grams
-                )
-            """)
-            db.execute(query_meal, {
-                "u_id": u_id,
-                "name": meal_data.name or "Pasto",
-                "m_grams": meal_data.meal_grams,
-                "carb": meal_data.carbs_grams,
-                "sug": meal_data.sugars_grams,
-                "fat": meal_data.fats_grams,
-                "prot": meal_data.proteins_grams,
-                "fib": meal_data.fibers_grams,
-                "g_idx": meal_data.glycemic_index,
-                "not": meal_data.notes,
-                "at": meal_data.consumed_at
-            })
-
-        if "post" in phase:
-            # Se tutto è andato a buon fine, fa il commit di entrambe le tabelle
-            db.commit()
-            return {"status": "success",
-                    "message": "Dati salvati correttamente",
-                    "advice": brain.getPostMealFoodAdvice(glucose_data, meal_data, u_id, db)
-                    }
+        db.commit()
+        return {"status": "success",
+                "message": "Dati salvati correttamente",
+                "advice": tmpAdvice
+                }
 
     except HTTPException as http_ex:
         # Se l'errore è il 404 del profilo, non serve fare rollback ma lo rilanciamo

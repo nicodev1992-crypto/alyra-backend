@@ -248,8 +248,7 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
     return advice + message_database.LEGAL_DISCLAIMER
 
 
-def getPostMealFoodAdvice(glucose_data, meal_data, user_id: int, db) -> str:
-    # 1. Recupero del profilo utente per le soglie mediche personalizzate
+def getPostMealFoodAdvice(glucose_data, mealData, user_id: int, db) -> str:
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
         {"u_id": user_id}
@@ -259,52 +258,7 @@ def getPostMealFoodAdvice(glucose_data, meal_data, user_id: int, db) -> str:
         raise HTTPException(
             status_code=404, detail="Profilo utente non trovato")
 
-    current_glucose = float(glucose_data.sugar_value or 0.0)
-
-    # Soglie personalizzate (o default clinici)
-    hypo_threshold = user_profile.get('hypo_threshold', 70)
-    target_min = user_profile.get('target_min', 80)
-    target_max = user_profile.get('target_max', 140)
-
-    # 2. LOGICA DI CONTROLLO ESCLUSIVA PER IL POST-PASTO
-
-    # --- CASO 1: IPOGLICEMIA IMMEDIATA ---
-    if current_glucose <= hypo_threshold:
-        return (
-            f"🚨 ALLERTA IPOGLICEMIA POST-PASTO ({current_glucose} mg/dL)!\n"
-            "La glicemia è scesa sotto la soglia di sicurezza. Questo può capitare per un dosaggio eccessivo di insulina o per un forte anticipo.\n\n"
-            "COSA FARE IMMEDIATAMENTE:\n"
-            "1. Assumi subito 15g di carboidrati a rapido assorbimento (es. 3 bustine di zucchero sciolte in acqua, 150ml di succo di frutta o mezza lattina di Coca-Cola normale).\n"
-            "2. Riposati e ricontrolla il valore tra 15 minuti."
-        )
-
-    # --- CASO 2: TENDENZA AL BASSO ---
-    elif hypo_threshold < current_glucose < target_min:
-        return f"🟡 Glicemia post-prandiale tendente al basso ({current_glucose} mg/dL). Monitora il trend, se scende ancora assumi un piccolo snack."
-
-    # --- CASO 3: IN TARGET ---
-    elif target_min <= current_glucose <= target_max:
-        return f"🟢 Glicemia Post-Pasto in perfetto target ({current_glucose} mg/dL)! Ottima gestione del pasto precedente."
-
-    # --- CASO 4: IPERGLICEMIA ---
-    else:
-        return (
-            f"🚨 IPERGLICEMIA POST-PASTO ({current_glucose} mg/dL)!\n"
-            "La glicemia dopo il pasto è alta. Valuta se è necessaria una dose di correzione (bolo di correzione tramite ISF) e bevi molta acqua per aiutare i reni."
-        )
-
-
-def getPreFoodAdvice(df_glucose, user_id, db, mealData):
-    user_profile = db.execute(
-        text("SELECT * FROM profiles WHERE id = :u_id"),
-        {"u_id": user_id}
-    ).mappings().first()
-
-    if not user_profile:
-        raise HTTPException(
-            status_code=404, detail="Profilo utente non trovato")
-
-    glucose_value = float(df_glucose.sugar_value or 0.0)
+    glucose_value = float(glucose_data.sugar_value or 0.0)
 
     # Soglie personalizzate (con valori di default medici standard)
     ipo_threshold = user_profile.get('hypo_threshold', 70)
@@ -314,8 +268,8 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
     measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
 
     current_iob = calculate_iob(
-        df_glucose.insulin_value,
-        df_glucose.insulin_time,
+        glucose_data.insulin_value,
+        glucose_data.insulin_time,
         user_profile['insulin_duration']
     )
 
@@ -323,24 +277,24 @@ def getPreFoodAdvice(df_glucose, user_id, db, mealData):
     advice = ""
 
     if glucose_value <= ipo_threshold:
-        advice = premealadvice.getPreMealTooLowAlarmAdvice(
+        advice = postmealadvice.getPostMealTooLowAlarmAdvice(
             glucose_value, user_profile, mealData, current_iob)
 
     elif target_min < glucose_value < ideal_target:
-        advice = premealadvice.getPreMealUnderTargetIdealAdvice(
+        advice = postmealadvice.getPostMealUnderTargetIdealAdvice(
             glucose_value, user_profile, mealData, current_iob)
 
     elif glucose_value == ideal_target:
-        advice = premealadvice.getPreMealExactTargetIdealAdvice(
+        advice = postmealadvice.getPostMealExactTargetIdealAdvice(
             glucose_value, user_profile, mealData, current_iob)
 
     elif ideal_target < glucose_value < target_max:
-        advice = premealadvice.getPreMealOverTargetIdealAdvice(
+        advice = postmealadvice.getPostMealOverTargetIdealAdvice(
             glucose_value, user_profile, mealData, current_iob)
 
     # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
     elif glucose_value >= target_max:
-        advice = premealadvice.getPreMealGlucoseTooHigh(
+        advice = postmealadvice.getPostMealGlucoseTooHigh(
             glucose_value, user_profile, mealData, current_iob)
 
     # Output finale pulito
