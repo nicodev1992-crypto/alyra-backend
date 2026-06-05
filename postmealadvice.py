@@ -27,7 +27,8 @@ def getPostMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData, curre
     punti_sotto_target = target_ideal - glicemia_attuale
 
     if isf > 0 and ic_ratio > 0:
-        carbo_correzione_precisi = round((punti_sotto_target / isf) * ic_ratio, 1)
+        carbo_correzione_precisi = round(
+            (punti_sotto_target / isf) * ic_ratio, 1)
         carbo_soccorso_reali = max(15.0, min(30.0, carbo_correzione_precisi))
     else:
         carbo_soccorso_reali = 15.0
@@ -75,7 +76,7 @@ def getPostMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData, curre
             f"può creare un ritardo: l'insulina agisce subito, mentre il cibo arriva in circolo più tardi. "
             f"Suggerirei quindi di fare attenzione a possibili risalite tardive nelle prossime ore.\n"
         )
-    
+
     if fibre >= 5.0:
         msg += (
             f"- Contenuto di Fibre ({fibre} g): Le fibre rallentano i tempi di assimilazione del pasto solido.\n"
@@ -98,7 +99,8 @@ def getPostMealTooLowAlarmAdvice(glicemia_attuale, user_profile, mealData, curre
         f"i protocolli concordati con il proprio medico specialista o diabetologo. In caso di malessere, contatta subito i soccorsi (112)."
     )
 
-    return msg
+    return msg + message_database.EMERGENCY_MESSAGE
+
 
 def getPostMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
@@ -123,7 +125,8 @@ def getPostMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData, current_
 
     # 3. MATEMATICA TEORICA DELLA CORREZIONE POST-PASTO
     punti_da_scendere = glicemia_attuale - target_max
-    unita_correzione_teorica = round(punti_da_scendere / isf, 1) if isf > 0 else 0.0
+    unita_correzione_teorica = round(
+        punti_da_scendere / isf, 1) if isf > 0 else 0.0
 
     # 4. Intestazione dell'allarme informativa Post-Pranzo
     consiglio = (
@@ -153,8 +156,9 @@ def getPostMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData, current_
     # Nota sull'Insulina Attiva (IOB) - ASSOLUTAMENTE CRUCIALE NEL POST-PASTO
     if current_IOB is not None and current_IOB > 0:
         # Calcoliamo quanta correzione rimarrebbe teoricamente al netto della IOB
-        correzione_al_netto_iob = max(0.0, round(unita_correzione_teorica - current_IOB, 1))
-        
+        correzione_al_netto_iob = max(0.0, round(
+            unita_correzione_teorica - current_IOB, 1))
+
         consiglio += (
             f"📊 Nota fondamentale sull'Insulina Attiva (IOB):\n"
             f"  Il sistema rileva circa {current_IOB}\u00A0U di insulina ancora attiva in circolo (derivante dal bolo del pasto).\n"
@@ -217,7 +221,8 @@ def getPostMealGlucoseTooHigh(glicemia_attuale, user_profile, mealData, current_
         f"In presenza di malessere o sintomi gravi, contatta immediatamente il servizio d'emergenza (112)."
     )
 
-    return consiglio
+    return consiglio + message_database.EMERGENCY_MESSAGE
+
 
 def getPostMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
@@ -311,6 +316,7 @@ def getPostMealExactTargetIdealAdvice(glicemia_attuale, user_profile, mealData, 
 
     return msg
 
+
 def getPostMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
     Genera un messaggio esclusivamente informativo di supporto post-pasto quando la glicemia è IN TARGET ma nella FASCIA BASSA
@@ -334,7 +340,8 @@ def getPostMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData, 
 
     # 3. Calcoli matematici puramente teorici (Modello di scostamento)
     punti_sotto_target = target_ideal - glicemia_attuale
-    unita_sconto_teorico = round(punti_sotto_target / isf, 1) if isf > 0 else 0.0
+    unita_sconto_teorico = round(
+        punti_sotto_target / isf, 1) if isf > 0 else 0.0
 
     # 4. Costruzione del messaggio - Sezione Glicemia e Calcoli Post-Pranzo
     msg = (
@@ -416,6 +423,7 @@ def getPostMealUnderTargetIdealAdvice(glicemia_attuale, user_profile, mealData, 
 
     return msg
 
+
 def getPostMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData, current_IOB=None):
     """
     Genera un messaggio esclusivamente informativo di supporto post-pasto quando la glicemia è IN TARGET ma nella FASCIA ALTA
@@ -441,7 +449,8 @@ def getPostMealOverTargetIdealAdvice(glicemia_attuale, user_profile, mealData, c
     # 3. Calcoli matematici puramente teorici (Scostamento e Micro-Correzione)
     unita_pasto_stimata = round(carbo / ic_ratio, 1) if ic_ratio > 0 else 0.0
     punti_sopra_target = glicemia_attuale - target_ideal
-    unita_micro_correzione = round(punti_sopra_target / isf, 1) if isf > 0 else 0.0
+    unita_micro_correzione = round(
+        punti_sopra_target / isf, 1) if isf > 0 else 0.0
 
     # 4. Intestazione del messaggio Post-Pranzo
     msg = (
