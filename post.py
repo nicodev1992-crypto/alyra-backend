@@ -167,7 +167,7 @@ def insert_unified_log(
         tmpAdvice = ""
         if "pre" in phase:
             tmpAdvice = brain.getPreMealFoodAdvice(
-                glucose_data, u_id, db, meal_data)
+                glucose_data, meal_data, u_id, db)
         else:
             tmpAdvice = brain.getPostMealFoodAdvice(
                 glucose_data, meal_data, u_id, db)
