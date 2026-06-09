@@ -5,6 +5,8 @@ import brain
 from database import get_db
 from logger import logger
 import schemas
+from datetime import datetime, timezone
+
 # tutte le richieste che iniziano per post arrivano qua
 router = APIRouter(prefix="/post")
 
@@ -163,7 +165,7 @@ def insert_unified_log(
                 # Se non c'è, Pydantic passerà None -> NULL nel DB
                 "ins_time": glucose_data.insulin_time
             })
-        
+
         tmpAdvice = ""
         if "pre" in phase:
             tmpAdvice = brain.getPreMealFoodAdvice(
@@ -198,6 +200,17 @@ def insert_unified_log(
                     "not": meal_data.notes,
                     "at": meal_data.consumed_at
                 })
+
+        queryAdvice = text("""
+        INSERT INTO messages (created_at,user_id, last_glucose_advice,last_meal_advice)
+        VALUES (:time,:u_id, :l_g_advice, :l_m_advice)
+        """)
+        db.execute(queryAdvice, {
+            "time": datetime.now(timezone.utc),
+            "u_id": u_id,
+            "l_g_advice": tmpAdvice,
+            "l_m_advice": None
+        })
 
         db.commit()
         return {"status": "success",
