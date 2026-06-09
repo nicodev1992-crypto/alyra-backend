@@ -248,6 +248,58 @@ def getGlucoseAdvice(current_iob, glucoseData, user_id, db):  # salvo consiglio
     return advice + message_database.LEGAL_DISCLAIMER
 
 
+def getPreMealFoodAdvice(glucose_data, mealData, user_id: int, db) -> str:
+    user_profile = db.execute(
+        text("SELECT * FROM profiles WHERE id = :u_id"),
+        {"u_id": user_id}
+    ).mappings().first()
+
+    if not user_profile:
+        raise HTTPException(
+            status_code=404, detail="Profilo utente non trovato")
+
+    glucose_value = float(glucose_data.sugar_value or 0.0)
+
+    # Soglie personalizzate (con valori di default medici standard)
+    ipo_threshold = user_profile.get('hypo_threshold', 70)
+    target_min = user_profile.get('target_min', 80)
+    target_max = user_profile.get('target_max', 140)
+    ideal_target = user_profile.get('target_ideal', 120)
+    measurement_unit = user_profile.get('measurement_unit', "mg/Dl")
+
+    current_iob = calculate_iob(
+        glucose_data.insulin_value,
+        glucose_data.insulin_time,
+        user_profile['insulin_duration']
+    )
+
+    # 3. Logica di raccomandazione del CIBO
+    advice = ""
+
+    if glucose_value <= ipo_threshold:
+        advice = premealadvice.getPreMealTooLowAlarmAdvice(
+            glucose_value, user_profile, mealData, current_iob)
+
+    elif target_min < glucose_value < ideal_target:
+        advice = premealadvice.getPreMealUnderTargetIdealAdvice(
+            glucose_value, user_profile, mealData, current_iob)
+
+    elif glucose_value == ideal_target:
+        advice = premealadvice.getPreMealExactTargetIdealAdvice(
+            glucose_value, user_profile, mealData, current_iob)
+
+    elif ideal_target < glucose_value < target_max:
+        advice = premealadvice.getPreMealOverTargetIdealAdvice(
+            glucose_value, user_profile, mealData, current_iob)
+
+    # CASO 4: IPERGLICEMIA (Glicemia alta, i carboidrati vanno ridotti a zero)
+    elif glucose_value >= target_max:
+        advice = premealadvice.getPreMealGlucoseTooHigh(
+            glucose_value, user_profile, mealData, current_iob)
+
+    # Output finale pulito
+    return advice
+
 def getPostMealFoodAdvice(glucose_data, mealData, user_id: int, db) -> str:
     user_profile = db.execute(
         text("SELECT * FROM profiles WHERE id = :u_id"),
