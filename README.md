@@ -18,4 +18,4 @@ Python backend for **Alyra**, a diabetes and meal-tracking application integrate
 1. **Clone repository:**
    ```bash
    git clone https://github.com/nicodev1992-crypto/alyra-backend.git
-   cd alyra-backend
+  
