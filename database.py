@@ -3,8 +3,14 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import create_engine
 from datetime import datetime
 
-DATABASE_URL = "postgresql://postgres.pmovrnppetzrorgrxsow:Alyra1992!Figa1992!@aws-1-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require"
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+print("DEBUG - DATABASE_URL:", os.environ.get("DATABASE_URL"))
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
 # 1. CREIAMO LA BASE (Questa è quella che mancava!)
 Base = declarative_base()
 

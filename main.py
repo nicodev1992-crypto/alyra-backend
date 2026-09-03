@@ -4,12 +4,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Importa i tuoi file router
 import get
 import post
 import brain
 import delete
+import os
+
 # Importa il database dal tuo file database.py
 from database import Base, engine, SessionLocal, DATABASE_URL
 
